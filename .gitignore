@@ -1,0 +1,16 @@
+# 依存関係（重たいので除外）
+node_modules/
+
+# 環境変数（秘密情報なので除外）
+.env
+.env.local
+
+# Next.js ビルド成果物
+.next/
+out/
+dist/
+
+# OSごとの不要ファイル
+.DS_Store
+Thumbs.db
+
