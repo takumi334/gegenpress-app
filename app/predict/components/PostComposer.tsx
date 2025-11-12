@@ -118,6 +118,10 @@ function radarFromStandings(home: TableRow, away: TableRow, all: TableRow[]): Ra
 
   return { home: homeSide, away: awaySide, tacticLabel, tacticDetail };
 }
+// Radar.tsx
+const SIZE = 300; // 360 → 300
+const R = 110;    // 130 → 110
+
 
 // ===================== 本体 =====================
 export default function PostComposer({ init }: Props) {

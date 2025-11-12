@@ -1,0 +1,30 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Thread {
+  id        Int      @id @default(autoincrement())
+  teamId    Int
+  title     String
+  createdAt DateTime @default(now())
+}
+
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  threadId  Int
+  author    String?
+  body      String    @default("")
+  createdAt DateTime  @default(now())
+
+  thread    Thread    @relation(fields: [threadId], references: [id])
+
+  @@index([threadId, createdAt])
+}
+

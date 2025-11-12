@@ -1,26 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function simpleExplain(text: string): string {
-  const t = text.slice(0, 1500);
-  const tips: string[] = [];
-
-  if (/\bI goes\b/i.test(t)) tips.push("主語と動詞の一致：I の後は go。");
-  if (/\ba [aeiou]/i.test(t)) tips.push("冠詞 a/an：母音で始まる語は an。");
-  if (/\ba [a-z]+s\b/i.test(t)) tips.push("複数名詞に a は不可。");
-  if (/\bin \d{1,2}(am|pm)\b/i.test(t)) tips.push("時刻は at を用いる（例：at 7 pm）。");
-
-  if (!tips.length) tips.push("大きな文法問題は見つかりません。自然な表現です。");
-  return tips.join("\n");
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { text } = await req.json();
-    if (!text || typeof text !== "string")
-      return NextResponse.json({ explanation: "" });
-    return NextResponse.json({ explanation: simpleExplain(text) });
-  } catch {
-    return NextResponse.json({ explanation: "" });
+    const { text, target, native } = await req.json();
+    if (!text || !target || !native) {
+      return NextResponse.json(
+        { error: "text, target and native required" },
+        { status: 400 }
+      );
+    }
+
+    // 🧠 native（母国語）で文法を説明
+    const prompt = `
+You are a friendly and patient language teacher.
+Please explain the grammar of the following ${target} sentence in the learner's native language (${native}).
+Write your explanation entirely in ${native}.
+Use short, clear sentences — about 3 simple bullet points — so even beginners can understand.
+Sentence: ${text}
+`;
+
+    const apiKey = process.env.OPENAI_API_KEY!;
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.4,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || "OpenAI error");
+
+    const explanation =
+      data.choices?.[0]?.message?.content?.trim() ??
+      "Aucune explication trouvée.";
+
+    return NextResponse.json({ explanation });
+  } catch (err) {
+    console.error("grammar route error:", err);
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
 }
 

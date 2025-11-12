@@ -1,17 +1,14 @@
 {
   "compilerOptions": {
-    /* ビルドターゲット */
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
 
-    /* JS / TS 共通 */
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
     "noEmit": true,
     "incremental": true,
 
-    /* モジュール解決 */
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
@@ -20,34 +17,21 @@
     "jsx": "preserve",
     "forceConsistentCasingInFileNames": true,
 
-    /* パスエイリアス */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/*"],
-
-      /* 共通レイヤ（app直下） */
+      "@/*": ["app/*"],                     // ← ここを修正
       "@app/*": ["app/*"],
       "@components/*": ["app/components/*"],
       "@lib/*": ["app/lib/*"],
-
-      /* board配下 */
       "@board/*": ["app/board/*"],
       "@board/components/*": ["app/board/components/*"]
     },
 
-    /* 出力と型 */
     "outDir": "dist",
     "types": ["node", "react", "react-dom"],
-
-    /* Next.js プラグイン */
     "plugins": [{ "name": "next" }]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
 

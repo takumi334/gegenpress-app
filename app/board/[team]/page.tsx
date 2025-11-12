@@ -1,69 +1,50 @@
 // app/board/[team]/page.tsx
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTeamNameFromFD, resolveTeamId } from "@/lib/team-resolver";
-import ClientHeading from "./ClientHeading";
+import { unwrapParams } from "@/lib/next-compat";
+
+import BoardClient from "@board/components/BoardClient";
+import PredictBox from "@board/components/PredictBox";
+
+// ★ここを相対インポートに変更
 import NewsList from "./NewsList";
 import OfficialVideos from "./officialVideos";
-import BoardClient from "@/board/components/BoardClient";
 
-export default async function BoardPage({ params }: { params: { team: string } }) {
-  // /board/[team] は「スラッグ or 数値」の両対応
-  const resolved = resolveTeamId(params.team);
-  const num = Number(params.team);
-  const teamId = resolved ?? (Number.isNaN(num) ? undefined : num);
+import { getTeamNameFromFD } from "@lib/team-resolver";
+import NewThreadForm from "@board/components/NewThreadForm";
+import ThreadList    from "@board/components/ThreadList";
 
-  if (teamId == null) notFound();
+export default async function TeamBoardPage({
+  params,
+}: {
+  params: { team: string } | Promise<{ team: string }>;
+}) {
+  // 14/15 両対応
+  const { team } = await (params instanceof Promise ? params : Promise.resolve(params));
+  const teamId = team.trim();
 
-  // チーム名を先に取得
-  const teamName = await getTeamNameFromFD(String(teamId));
+  // 数字だけ許可（/board/57）
+  if (!/^\d+$/.test(teamId)) notFound();
+
+  const teamName =
+    (await getTeamNameFromFD(teamId).catch(() => null)) ?? `Team ${teamId}`;
 
   return (
     <main className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">
-        <ClientHeading teamName={teamName} />
-      </h1>
+      <h1 className="text-2xl font-bold">{teamName} 掲示板</h1>
 
-      {/* 掲示板クライアント */}
-      <section>
-        <BoardClient team={String(teamId)} initialTab="tweet" />
-      </section>
-
-      {/* 2カラム：ニュース / 公式動画 */}
-      <section className="space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* 左：ニュース */}
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              <Link href={`/board/${teamId}/news`} className="underline underline-offset-4">
-                News
-              </Link>
-            </h2>
-            <NewsList teamName={teamName} limit={10} />
-            <div className="text-right">
-              <Link href={`/board/${teamId}/news`} className="text-sm underline underline-offset-4">
-                もっと見る
-              </Link>
-            </div>
-          </div>
-
-          {/* 右：公式動画 */}
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              <Link href={`/board/${teamId}/videos`} className="underline underline-offset-4">
-                Team news / Official videos
-              </Link>
-            </h2>
-            <OfficialVideos teamName={teamName} limit={10} />
-            <div className="text-right">
-              <Link href={`/board/${teamId}/videos`} className="text-sm underline underline-offset-4">
-                もっと見る
-              </Link>
-            </div>
-          </div>
+      <section className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(320px,380px)] gap-6">
+        <div className="space-y-6">
+          <NewThreadForm teamId={teamId} />
+          <ThreadList teamId={teamId} />
         </div>
+
+        <aside className="md:sticky md:top-4 h-fit">
+          <PredictBox teamId={teamId} />
+        </aside>
       </section>
     </main>
   );
 }
+
+
 

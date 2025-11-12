@@ -1,8 +1,9 @@
 // app/leagues/[leagueId]/page.tsx
 import Link from "next/link";
-import { LEAGUES, type LeagueId } from "@/lib/leagues";
-import { COMPETITIONS } from "@/lib/footballData.constant";
-import { fdFetch } from "@/lib/fd";
+import { LEAGUES, type LeagueId } from "../../lib/leagues";
+import { COMPETITIONS } from "../../lib/footballData.constant";
+import { fdFetch } from "../../lib/fd";
+
 
 // Standings API のレスポンス型
 type StandingRow = {

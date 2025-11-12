@@ -1,85 +1,63 @@
-// app/components/NextMatchCard.tsx
-import React from "react";
+// app/components/NextMatchWidget.tsx
+"use client";
+import { useEffect, useState } from "react";
 
-type Prob = { win: number; draw: number; lose: number };   // 0..1
-type Pred = { homeGoals: number; awayGoals: number };
-type Odds = { home: number; draw: number; away: number };
+type Match = {
+  utcDate: string;
+  homeTeam: { id: number; name: string };
+  awayTeam: { id: number; name: string };
+  competition?: { name?: string };
+  venue?: string;
+};
 
-export function NextMatchCard({
-  title = "次節 予想スコア",
-  homeTeam,
-  awayTeam,
-  kickoff,          // ISO string (なくてもOK)
-  pred,
-  prob,
-  odds,
-  lambdas,         // 例: { home: 1.73, away: 0.65 } 表示用
-  note,            // 例: "Poisson (過去20試合)"
-}: {
-  title?: string;
-  homeTeam: string;
-  awayTeam: string;
-  kickoff?: string;
-  pred: Pred;
-  prob: Prob;
-  odds?: Odds;
-  lambdas?: { home: number; away: number };
-  note?: string;
-}) {
-  const when = kickoff
-    ? new Date(kickoff).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        weekday: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : undefined;
+export default function NextMatchWidget({ teamId }: { teamId: number }) {
+  const [match, setMatch] = useState<Match | null>(null);
+  const [pred, setPred] = useState<{ exp: { home: number; away: number }, top: {score:string;p:number}[] } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const chip = (label: string) => (
-    <span className="rounded-full border border-white/25 bg-white/10 px-2 py-0.5 text-xs">
-      {label}
-    </span>
-  );
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      setLoading(true);
+      const r = await fetch(`/api/next-fixture?teamId=${teamId}`, { cache: "no-store" });
+      const data = await r.json();
+      if (!mounted) return;
+      setMatch(data.match ?? null);
+      if (data.match) {
+        const h = data.match.homeTeam.id;
+        const a = data.match.awayTeam.id;
+        const pr = await fetch(`/api/predict?homeId=${h}&awayId=${a}`, { cache: "no-store" }).then(r=>r.json());
+        if (!mounted) return;
+        setPred(pr);
+      }
+      setLoading(false);
+    })();
+    return () => { mounted = false; };
+  }, [teamId]);
 
+  if (loading) return <div className="border p-3 rounded">Loading next match…</div>;
+  if (!match) return <div className="border p-3 rounded">No upcoming match.</div>;
+
+  const date = new Date(match.utcDate).toLocaleString();
   return (
-    <aside className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur text-white p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold tracking-wide">{title}</h3>
-        <div className="flex items-center gap-2">
-          {chip(`Win ${Math.round(prob.win * 100)}%`)}
-          {chip(`Draw ${Math.round(prob.draw * 100)}%`)}
-          {chip(`Lose ${Math.round(prob.lose * 100)}%`)}
+    <div className="border p-3 rounded space-y-2">
+      <div className="text-sm opacity-70">{match.competition?.name || "Next match"}</div>
+      <div className="font-semibold">{match.homeTeam.name} vs {match.awayTeam.name}</div>
+      <div className="text-sm">{date}</div>
+
+      {pred && (
+        <div className="mt-2">
+          <div className="text-sm opacity-70">Expected goals (xG-like, simple)</div>
+          <div>{match.homeTeam.name}: {pred.exp.home.toFixed(2)} / {match.awayTeam.name}: {pred.exp.away.toFixed(2)}</div>
+          <div className="text-sm opacity-70 mt-2">Top scorelines</div>
+          <ul className="list-disc pl-5">
+            {pred.top.map((t, i) => (
+              <li key={i}>{t.score}  ({(t.p*100).toFixed(1)}%)</li>
+            ))}
+          </ul>
         </div>
-      </div>
-
-      <div className="rounded-xl bg-black/20 p-3 space-y-2">
-        {when && <div className="text-xs opacity-80">{when}</div>}
-        <div className="flex items-center justify-between text-base font-semibold">
-          <span className="truncate pr-2">{homeTeam}</span>
-          <span className="tabular-nums text-lg">
-            {pred.homeGoals} – {pred.awayGoals}
-          </span>
-          <span className="truncate pl-2 text-right">{awayTeam}</span>
-        </div>
-
-        {odds && (
-          <div className="flex justify-around text-xs mt-1 opacity-80">
-            <span>Home {odds.home.toFixed(2)}</span>
-            <span>Draw {odds.draw.toFixed(2)}</span>
-            <span>Away {odds.away.toFixed(2)}</span>
-          </div>
-        )}
-
-        {lambdas && (
-          <div className="text-xs opacity-70 tabular-nums mt-1">
-            λH:{lambdas.home.toFixed(2)}　λA:{lambdas.away.toFixed(2)}
-          </div>
-        )}
-      </div>
-
-      {note && <p className="text-xs leading-relaxed opacity-80">{note}</p>}
-    </aside>
+      )}
+    </div>
   );
 }
 

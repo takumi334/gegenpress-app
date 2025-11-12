@@ -1,12 +1,77 @@
-// app/lib/translate.ts
+'use server';
 
-/**
- * Google鬩怜遜・ｽ・ｻ鬮ｫ・ｪ繝ｻ・ｳ API 驍ｵ・ｺ繝ｻ・ｮ髯ｷ・ｻ繝ｻ・ｼ驍ｵ・ｺ繝ｻ・ｳ髯ｷ繝ｻ・ｽ・ｺ驍ｵ・ｺ隴会ｽｦ繝ｻ・ｼ陋ｹ・ｻ郢晢｣ｰ驛｢譎・ｽｺ蛟･繝ｻ髯橸ｽｳ雋・ｽｯ繝ｻ・｣郢晢ｽｻ繝ｻ・ｼ郢晢ｽｻ
- * 髯溷供・ｾ蠕個繝ｻGoogle Cloud Translation API 驍ｵ・ｺ繝ｻ・ｨ髯晢ｽｾ繝ｻ・ｮ驍ｵ・ｺ驍・ｽｲ陝蟶ｷ・ｸ・ｺ陋ｹ・ｻ繝ｻ繝ｻ
- */
-export async function translateText(text: string, targetLang: string) {
-  // 驍ｵ・ｺ髦ｮ蜻ｻ・ｼ繝ｻ・ｸ・ｺ繝ｻ・ｧ驍ｵ・ｺ繝ｻ・ｯ驛｢謨鳴驛｢譎・ｽｺ蛟･繝ｻ驍ｵ・ｺ繝ｻ・ｧ驍ｵ・ｲ陜蜈始] xxx驍ｵ・ｲ鬮ｦ・ｪ郢晢ｽｻ髯溷私・ｽ・｢髯溷床・ｸ蟯ｩ繝ｻ髯樊ｺｽ蛻､鬩ｪ・､驍ｵ・ｺ陷会ｽｱ遯ｶ・ｻ鬮ｴ隨ｬ魍堤ｬ倥・
-  // 髯橸ｽｳ雋翫・諤咎し・ｺ繝ｻ・ｯ fetch 驍ｵ・ｺ繝ｻ・ｧ Google API 驛｢・ｧ髮区ｧｫ・ｨ・ｼ驍ｵ・ｺ闕ｳ讒ｭ繝ｻ鬨ｾ繝ｻ繝ｻ遶企ｦｴﾑ繝ｻ・ｮ驍ｵ・ｺ髢ｧ・ｴ鬩ｪ・､驍ｵ・ｺ陋ｹ・ｻ繝ｻ繝ｻ
-  return `[${targetLang}] ${text}`;
+const GOOGLE_URL = "https://translation.googleapis.com/language/translate/v2";
+
+type CacheKey = `${string}::${string}`;
+const MAX_ENTRIES = 2000;
+const TTL_MS = 24 * 60 * 60 * 1000;
+
+const mem = new Map<CacheKey, { t: number; v: string }>();
+
+function normalize(s: string) {
+  return (s ?? "").replace(/\s+/g, " ").trim();
+}
+function keyOf(text: string, target: string): CacheKey {
+  return `${normalize(text)}::${target}`;
+}
+function getGoogleKey(): string {
+  const v = process.env.GOOGLE_TRANSLATE_API_KEY;
+  if (!v) throw new Error("GOOGLE_TRANSLATE_API_KEY is missing!");
+  return v;
+}
+function getCached(text: string, target: string) {
+  const k = keyOf(text, target);
+  const hit = mem.get(k);
+  if (!hit) return null;
+  if (Date.now() - hit.t > TTL_MS) { mem.delete(k); return null; }
+  mem.delete(k); mem.set(k, hit);   // LRU
+  return hit.v;
+}
+function setCached(text: string, target: string, v: string) {
+  const k = keyOf(text, target);
+  if (mem.size >= MAX_ENTRIES) {
+    const first = mem.keys().next().value;
+    if (first) mem.delete(first);
+  }
+  mem.set(k, { t: Date.now(), v });
+}
+
+export async function translateBatch(texts: string[], target: string): Promise<string[]> {
+  const key = getGoogleKey();
+  const clean = (texts ?? []).map(t => (t ?? "").trim());
+  if (!target) throw new Error("target is required");
+  if (clean.length === 0) return [];
+
+  const out: string[] = new Array(clean.length);
+  const need: { idx: number; text: string }[] = [];
+  clean.forEach((t, i) => {
+    if (!t) { out[i] = ""; return; }
+    const hit = getCached(t, target);
+    if (hit != null) out[i] = hit; else need.push({ idx: i, text: t });
+  });
+  if (need.length === 0) return out;
+
+  const res = await fetch(`${GOOGLE_URL}?key=${key}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q: need.map(n => n.text), target, format: "text" }),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`google translate error ${res.status}: ${await res.text().catch(()=> "")}`);
+
+  const json = await res.json() as { data?: { translations?: Array<{ translatedText?: string }> } };
+  const trs = (json.data?.translations ?? []).map(t => t?.translatedText ?? "");
+
+  need.forEach((n, i) => {
+    const v = trs[i] ?? n.text;
+    out[n.idx] = v;
+    setCached(n.text, target, v);
+  });
+  return out;
+}
+
+export async function translateText(text: string, target: string): Promise<string> {
+  const [t] = await translateBatch([text], target);
+  return t ?? text;
 }
 

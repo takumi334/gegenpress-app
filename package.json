@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "set NEXT_DISABLE_TURBOPACK=1&& next dev",
+    "build": "set NEXT_DISABLE_TURBOPACK=1&& next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
+    "@prisma/client": "^6.17.1",
     "lucide-react": "^0.544.0",
     "next": "15.5.0",
     "react": "19.1.0",
@@ -25,6 +27,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.0",
     "postcss": "^8.5.6",
+    "prisma": "^6.17.1",
     "tailwindcss": "^4.1.13",
     "typescript": "^5"
   }

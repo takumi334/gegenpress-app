@@ -1,25 +1,15 @@
-// app/board/[team]/OfficialVideos.tsx
+// app/board/[team]/officialVideos.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
-type Video = {
-  title: string;
-  url: string;
-};
+type Video = { id?: string; title: string; url?: string; publishedAt?: string; link?: string };
 
-export default function OfficialVideos({
-  teamName,
-  limit,
-}: {
-  teamName: string;
-  /** トップでは 10 件など。省略時は全件 */
-  limit?: number;
-}) {
+export default function OfficialVideos({ teamName, limit }: { teamName: string; limit?: number }) {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // NewsList と同じ基準で UI 言語を取得
+  // UI言語（翻訳プロキシの tl 用）
   const lang = useMemo(() => {
     if (typeof window === "undefined") return "en";
     return localStorage.getItem("baseLang") || localStorage.getItem("lang") || "en";
@@ -27,46 +17,61 @@ export default function OfficialVideos({
 
   useEffect(() => {
     let canceled = false;
-    async function fetchVideos() {
+
+    (async () => {
+      setLoading(true);
       try {
-        const r = await fetch(
-          `/api/videos?q=${encodeURIComponent(teamName)} official`,
-          { cache: "no-store" }
-        );
-        if (!r.ok) throw new Error(`Failed videos: ${r.status}`);
+        const r = await fetch(`/api/videos?q=${encodeURIComponent(teamName + " official")}`, { cache: "no-store" });
         const data = await r.json();
-        if (!canceled) setVideos(data.items ?? []);
-      } catch (e) {
-        console.error(e);
-        if (!canceled) setVideos([]);
+
+        // 1) API が items を返せたらそのまま使う（link / url どちらでも対応）
+        let items: Video[] = Array.isArray(data?.items) ? data.items : [];
+
+        // 2) 何も無ければフォールバックで YouTube 検索リンクを自動生成
+        if (!items.length) {
+          const q = (s: string) => `${teamName} ${s}`;
+          items = [
+            { title: `${teamName} official channel`, url: yts(q("official channel")) },
+            { title: `${teamName} highlights`,       url: yts(q("highlights")) },
+            { title: `${teamName} press conference`, url: yts(q("press conference")) },
+          ];
+        }
+
+        if (!canceled) setVideos(items);
+      } catch (_) {
+        // 失敗時もフォールバック
+        const q = (s: string) => `${teamName} ${s}`;
+        const items: Video[] = [
+          { title: `${teamName} official channel`, url: yts(q("official channel")) },
+          { title: `${teamName} highlights`,       url: yts(q("highlights")) },
+          { title: `${teamName} press conference`, url: yts(q("press conference")) },
+        ];
+        if (!canceled) setVideos(items);
       } finally {
         if (!canceled) setLoading(false);
       }
-    }
-    fetchVideos();
-    return () => {
-      canceled = true;
-    };
+    })();
+
+    return () => { canceled = true; };
   }, [teamName]);
 
-  if (loading) return <p data-i18n>動画を読み込み中...</p>;
-  if (!videos.length) return <p data-i18n>動画が見つかりません</p>;
+  if (loading && videos.length === 0) return <p>Loading videos…</p>;
+  if (!videos.length) return <p>No videos found</p>;
 
   const list = limit ? videos.slice(0, limit) : videos;
+
+  // 既存ファイルをこの差分の通り修正してください
+
+// …（前半はそのまま）…
 
   return (
     <ul className="space-y-2">
       {list.map((v, i) => {
-        const href = gtLink(v.url, lang); // ✅ Google翻訳プロキシ経由で開く
+        const raw = v.url || v.link || "";
+        const href = toVideoHref(raw, lang); // ← ここを gtLink から変更
         return (
-          <li key={i} className="rounded-xl border border-white/10 p-3 hover:bg-white/5">
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener"
-              className="underline"
-              title={v.title}
-            >
+          <li key={v.id || i} className="rounded-xl border border-white/10 p-3 hover:bg-white/5">
+            <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
               🎥 {v.title}
             </a>
           </li>
@@ -76,9 +81,35 @@ export default function OfficialVideos({
   );
 }
 
-/* ========= helpers ========= */
+// ===== helpers =====
 
-// Google翻訳プロキシURLに変換（NewsList と同一仕様）
+// YouTube 検索URL（フォールバック）
+function yts(query: string) {
+  const u = new URL("https://www.youtube.com/results");
+  u.searchParams.set("search_query", query);
+  return u.toString();
+}
+
+// ★ 動画用の最終リンクを決める：YouTube系はそのまま、その他は翻訳プロキシ
+function toVideoHref(url: string, lang: string) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, "");
+    const isYouTube =
+      host === "youtube.com" ||
+      host === "m.youtube.com" ||
+      host === "youtu.be" ||
+      host.endsWith(".youtube.com");
+
+    if (isYouTube) return u.toString(); // 直接開く（翻訳プロキシなし）
+  } catch {
+    // 不正なURLはそのまま返す
+    return url;
+  }
+  return gtLink(url, lang); // YouTube 以外は翻訳プロキシ経由で
+}
+
+// News と同仕様の翻訳プロキシ（据え置き）
 function gtLink(url: string, lang: string) {
   const u = new URL("https://translate.google.com/translate");
   u.searchParams.set("sl", "auto");
@@ -86,4 +117,3 @@ function gtLink(url: string, lang: string) {
   u.searchParams.set("u", url);
   return u.toString();
 }
-
