@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import SiteHeader from "./components/SiteHeader";      // ← ★これを追加！
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import GrammarHints from "./components/GrammarHints";
+import AdBreakProvider from "./components/AdBreakProvider";
 
 
 
@@ -20,18 +21,20 @@ export default async function RootLayout({ children }) {
       <body className="min-h-dvh bg-black text-white antialiased">
         {/* 👇 ここで包む */}
         <I18nUIProvider initialLocale={initialLocale}>
-          <div className="border-b border-white/10">
-            <div className="mx-auto max-w-6xl p-4 flex items-center justify-between">
-              <SiteHeader />
-              <LanguageSwitcher /> {/* Provider の内側 */}
+          <AdBreakProvider>
+            <div className="border-b border-white/10">
+              <div className="mx-auto max-w-6xl p-4 flex items-center justify-between">
+                <SiteHeader />
+                <LanguageSwitcher /> {/* Provider の内側 */}
+              </div>
             </div>
-          </div>
 
-          <main className="mx-auto max-w-6xl p-4" id="main">
-            {children}
-          </main>
+            <main className="mx-auto max-w-6xl p-4" id="main">
+              {children}
+            </main>
 
-          <GrammarHints />
+            <GrammarHints />
+          </AdBreakProvider>
         </I18nUIProvider>
       </body>
     </html>
