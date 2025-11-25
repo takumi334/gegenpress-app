@@ -13,6 +13,8 @@ model Thread {
   teamId    Int
   title     String
   createdAt DateTime @default(now())
+
+  posts   Post[]   //　追加
 }
 
 

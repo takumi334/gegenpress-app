@@ -3,11 +3,20 @@
 // app/components/GrammarHints.tsx
 import { MINI_GRAMMAR, LANG_OPTIONS } from "../lib/grammar";
 // grammar.tsを使う
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 export default function GrammarHints() {
   const [locale, setLocale] = useState<keyof typeof MINI_GRAMMAR>("en");
   const [open, setOpen] = useState(false);
+
+  // localStroageからtargetLangを取得してsetLocaleする処理を追加 2025/11/18
+  useEffect(() => {
+    const storedLang = localStorage.getItem("targetLang");
+    console.log("storedLang:", storedLang);
+    if (storedLang && LANG_OPTIONS.some(l => l.code === storedLang)) {
+      setLocale(storedLang as keyof typeof MINI_GRAMMAR);
+    }
+  },[locale]);
 
   const tips = useMemo(() => {
     const list = MINI_GRAMMAR[locale] ?? [];

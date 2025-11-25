@@ -33,6 +33,9 @@ export default function ThreadList({ teamId }: Props) {
           : Array.isArray(j?.threads)
           ? j.threads
           : [];
+        
+        //titleと本文をlocaleに合わせて翻訳する処理を追加予定
+        //未実装
 
         if (alive) setItems(list);
       } catch (e: any) {

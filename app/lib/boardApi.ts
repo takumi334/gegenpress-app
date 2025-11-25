@@ -1,4 +1,6 @@
 // lib/boardApi.ts
+// 修正:2025/11/13 Prisma Clientをdefault importで取得するように変更
+import prisma from "@/lib/prisma";
 export type ThreadDTO = {
   id: number;
   teamId: number;
