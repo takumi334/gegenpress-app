@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, FormEvent } from "react";
 
-export default function CommentForm({ threadId }: { threadId: string }) {
+export default function CommentForm({ threadId }: { threadId: number }) {
   const router = useRouter();
   const [authorName, setAuthorName] = useState("");
   const [body, setBody] = useState("");

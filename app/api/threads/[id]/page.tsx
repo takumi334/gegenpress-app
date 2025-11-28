@@ -1,13 +1,22 @@
 // app/board/thread/[id]/page.tsx
 import { notFound } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import CommentForm from "./CommentForm";
+
+// Prisma のモデル型(Thread)は posts を含まないので、include 付きのペイロード型を使う
+type ThreadWithPosts = Prisma.ThreadGetPayload<{
+  include: { posts: true };
+}>;
 
 export default async function ThreadPage({
   params,
 }: { params: { id: string } }) {
-  const thread = await prisma.thread.findUnique({
-    where: { id: params.id },
+  const id = Number(params.id);
+  if (!Number.isInteger(id) || id <= 0) notFound();
+
+  const thread: ThreadWithPosts | null = await prisma.thread.findUnique({
+    where: { id },
     include: { posts: { orderBy: { createdAt: "asc" } } },
   });
   if (!thread) notFound();
@@ -26,7 +35,7 @@ export default async function ThreadPage({
               <li key={p.id} className="rounded border p-3">
                 <div className="text-sm text-gray-600 mb-1">
                   <span className="font-medium">
-                    {p.authorName || "匿名"}
+                    {p.author || "匿名"}
                   </span>{" "}
                   <span className="ml-2">
                     {new Date(p.createdAt).toLocaleString()}

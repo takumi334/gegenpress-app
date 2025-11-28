@@ -6,6 +6,7 @@ type Thread = {
   id: string;
   teamId: number;
   title: string;
+  body?: string;
   createdAt: string;
   _count?: { posts: number };
 };

@@ -13,7 +13,8 @@ type Params = { params: { id: string } };
 // ----------------------------
 export async function POST(req: NextRequest, { params }: Params) {
   try {
-    const id = params?.id?.trim();
+    const resolved = await params;
+    const id = resolved?.id?.trim();
     if (!id) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
@@ -22,6 +23,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     let payload: any;
     try {
       payload = await req.json();
+      console.log(" payload:", payload);
     } catch {
       return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
     }
@@ -35,9 +37,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "本文が空です" }, { status: 400 });
     }
 
+    const idNum = Number(id);
+    if (isNaN(idNum) || idNum <= 0) {
+      return NextResponse.json({ error: "invalid id" }, { status: 400 });
+    }
+
     // スレッドが存在するかチェック
     const exists = await prisma.thread.findUnique({
-      where: { id },
+      where: { id: idNum },
       select: { id: true },
     });
 
@@ -51,8 +58,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     // 投稿を保存
     const post = await prisma.post.create({
       data: {
-        threadId: id,
-        authorName,
+        threadId: idNum,
+        author: authorName,
         body,
       },
       select: { id: true, createdAt: true },

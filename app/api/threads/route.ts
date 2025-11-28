@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: "title required" }), { status: 400 });
     }
 
-    const row = await createThread(t, title.trim(), (body ?? "").trim());
+    const bodyText = typeof body === "string" ? body.trim() : undefined;
+    const row = await createThread(t, title.trim(), bodyText);
     return Response.json(row, { status: 201 });
   } catch (e: any) {
     console.error("POST /api/threads error:", e);

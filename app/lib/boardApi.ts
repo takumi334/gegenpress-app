@@ -5,6 +5,7 @@ export type ThreadDTO = {
   id: number;
   teamId: number;
   title: string;
+  body: string;
   createdAt: Date;
 };
 
@@ -12,14 +13,13 @@ export async function listThreads(teamId: number) {
   return prisma.thread.findMany({
     where: { teamId },
     orderBy: { createdAt: "desc" },
-    select: { id: true, teamId: true, title: true, createdAt: true }, // content削除
+    select: { id: true, teamId: true, title: true, body: true, createdAt: true },
   });
 }
 
-export async function createThread(teamId: number, title: string) {
+export async function createThread(teamId: number, title: string, body: string = "") {
   return prisma.thread.create({
-    data: { teamId, title }, // content削除
-    select: { id: true, teamId: true, title: true, createdAt: true }, // content削除
+    data: { teamId, title, body },
+    select: { id: true, teamId: true, title: true, body: true, createdAt: true },
   });
 }
-

@@ -14,6 +14,7 @@ type ThreadData = {
   id: string;
   title: string;
   teamId: string;
+  body: string;
   posts: Post[];
 };
 
@@ -62,6 +63,9 @@ export default function ThreadView({
       <header className="space-y-1">
         <h1 className="text-xl font-bold">{data.title}</h1>
         <div className="text-xs opacity-60">投稿数: {data.posts.length}</div>
+        {data.body ? (
+          <p className="text-sm whitespace-pre-wrap mt-1">{data.body}</p>
+        ) : null}
       </header>
 
       <ul className="space-y-2">
@@ -94,7 +98,7 @@ export default function ThreadView({
 }
 
 // ------- reply form -------
-function ReplyForm({
+export function ReplyForm({
   threadId,
   onPosted,
 }: {

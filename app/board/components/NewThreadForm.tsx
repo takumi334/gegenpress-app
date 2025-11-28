@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function NewThreadForm({ teamId }: { teamId: number }) {
+export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 numberから修正 */ }) {
   const router = useRouter();
   const [authorName, setAuthorName] = useState("");
   const [title, setTitle] = useState("");
@@ -44,5 +44,47 @@ export default function NewThreadForm({ teamId }: { teamId: number }) {
   }
 
   // …フォームUIはそのまま…
+  // 2025/11/27 とりあえずUI追加
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block">
+          名前（任意）:
+          <input
+            type="text"
+            value={authorName}
+            onChange={(e) => setAuthorName(e.target.value)}
+            className="w-full border px-2 py-1"
+          />
+        </label>
+      </div>
+      <div>
+        <label className="block">
+          タイトル:
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border px-2 py-1"
+          />
+        </label>
+      </div>
+      <div>
+        <label className="block">
+          本文:
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className="w-full border px-2 py-1 min-h-[100px]"
+          />
+        </label>
+      </div>
+      {message && <div className="text-sm text-red-600">{message}</div>}
+      <div>
+        <button type="submit" className="px-3 py-1 border rounded">
+          投稿する
+        </button>
+      </div>
+    </form>
+  );
 }
-

@@ -12,6 +12,7 @@ model Thread {
   id        Int      @id @default(autoincrement())
   teamId    Int
   title     String
+  body      String    @default("")  // 追加
   createdAt DateTime @default(now())
 
   posts   Post[]   //　追加
