@@ -8,7 +8,7 @@ export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [message, setMessage] = useState("");
-
+  
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage("");
@@ -49,7 +49,7 @@ export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block">
-          名前（任意）:
+          Name（optional）:
           <input
             type="text"
             value={authorName}
@@ -60,7 +60,7 @@ export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 
       </div>
       <div>
         <label className="block">
-          タイトル:
+          Title:
           <input
             type="text"
             value={title}
@@ -71,7 +71,7 @@ export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 
       </div>
       <div>
         <label className="block">
-          本文:
+          Thread:
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -82,7 +82,7 @@ export default function NewThreadForm({ teamId }: { teamId: string/* 2025/11/27 
       {message && <div className="text-sm text-red-600">{message}</div>}
       <div>
         <button type="submit" className="px-3 py-1 border rounded">
-          投稿する
+          Post
         </button>
       </div>
     </form>

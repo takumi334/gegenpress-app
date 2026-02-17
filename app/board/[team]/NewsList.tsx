@@ -1,36 +1,60 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Item = { title: string; title_t?: string; link: string; lang?: string };
 
 export default function NewsList({
   teamName,
   limit,
+  initialItems,
+  initialLang = "ja",
 }: {
   teamName: string;
   limit?: number;
+  initialItems?: Item[];
+  initialLang?: string;
 }) {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<Item[]>(initialItems ?? []);
+  const [loading, setLoading] = useState(!initialItems);
+  const [lang, setLang] = useState(initialLang);
+  const initialLangRef = useRef(initialLang);
 
-  const lang = useMemo(() => {
-    if (typeof window === "undefined") return "ja";
-    return (
+  useEffect(() => {
+    setItems(initialItems ?? []);
+    setLoading(!initialItems);
+    initialLangRef.current = initialLang;
+    if (!initialItems) setLang(initialLang);
+  }, [initialItems, initialLang]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored =
       localStorage.getItem("targetLang") ||
       localStorage.getItem("baseLang") ||
-      localStorage.getItem("lang") ||
-      "ja"
-    );
+      localStorage.getItem("lang");
+    if (stored && stored !== lang) setLang(stored);
   }, []);
 
   useEffect(() => {
     let canceled = false;
+
+    // 初期データと同じ言語ならサーバー値をそのまま使う
+    if (initialItems?.length && lang === initialLangRef.current) {
+      setLoading(false);
+      return () => {
+        canceled = true;
+      };
+    }
+
+    if (typeof window === "undefined") return;
+
     const url = new URL("/api/news", window.location.origin);
     url.searchParams.set("q", teamName);
     url.searchParams.set("translate", "1");
     url.searchParams.set("lang", lang);
 
+    setLoading(true);
     fetch(url.toString(), { cache: "no-store" })
       .then((r) => r.json())
       .then((json) => !canceled && setItems(Array.isArray(json.items) ? json.items : []))
@@ -40,7 +64,7 @@ export default function NewsList({
     return () => {
       canceled = true;
     };
-  }, [teamName, lang]);
+  }, [teamName, lang, initialItems]);
 
   const list = limit ? items.slice(0, limit) : items;
   const siteLinks = buildSiteSearchLinks(teamName, lang);
@@ -172,4 +196,3 @@ function gtLinkOpt(url: string, lang: string, preferGT: boolean) {
   u.searchParams.set("u", url);
   return u.toString();
 }
-

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n-ui";
+import ReportButton from "@/components/ReportButton";
+import Link from "next/link";
+
 
 type Item = {
   id: string;
@@ -14,14 +17,23 @@ type Item = {
   body_t?: string;
 };
 
-type Props = { teamId: string };
+type Props = { teamId: string; initialItems?: Item[] };
 
-export default function ThreadList({ teamId }: Props) {
+export default function ThreadList({ teamId, initialItems }: Props) {
   const { locale } = useI18n();
-  const [items, setItems] = useState<Item[]>([]);
-  const [rawItems, setRawItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<Item[]>(initialItems ?? []);
+  const [rawItems, setRawItems] = useState<Item[]>(initialItems ?? []);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(!initialItems);
   const [targetLang, setTargetLang] = useState<string>(locale);
+
+  // initialItems が変わったら状態を同期
+  useEffect(() => {
+    setRawItems(initialItems ?? []);
+    setItems(initialItems ?? []);
+    setLoading(!initialItems);
+    setErr("");
+  }, [initialItems]);
 
   // localStorage に保存されている翻訳ターゲットを優先
   useEffect(() => {
@@ -40,8 +52,15 @@ export default function ThreadList({ teamId }: Props) {
   useEffect(() => {
     let alive = true;
     (async () => {
+      // SSR で初期値がある場合はクライアントフェッチをスキップ
+      if (initialItems?.length) {
+        setLoading(false);
+        return;
+      }
+
       try {
         setErr("");
+        setLoading(true);
         const res = await fetch(`/api/threads?teamId=${encodeURIComponent(teamId)}`, {
           cache: "no-store",
         });
@@ -63,12 +82,14 @@ export default function ThreadList({ teamId }: Props) {
         }
       } catch (e: any) {
         if (alive) setErr(e?.message || "load failed");
+      } finally {
+        if (alive) setLoading(false);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [teamId]);
+  }, [teamId, initialItems]);
 
   // title/body を targetLang（localStorage > locale）に翻訳
   useEffect(() => {
@@ -87,6 +108,8 @@ export default function ThreadList({ teamId }: Props) {
       rawItems.forEach((i) => {
         const t = (i.title || "").trim();
         const b = (i.body || "").trim();
+        const uniq = Array.from(new Set(texts.map(t => t.trim()))).filter(Boolean);
+
         if (t) texts.push(t);
         if (b) texts.push(b);
       });
@@ -134,23 +157,65 @@ export default function ThreadList({ teamId }: Props) {
     };
   }, [rawItems, targetLang, locale]);
 
+  if (loading && !rawItems.length) return <div className="text-sm text-gray-600">読み込み中…</div>;
   if (err) return <div className="text-red-600">Error: {err}</div>;
   if (!items.length) return <div className="text-sm text-gray-600">まだ投稿がありません。</div>;
 
   return (
     <div className="border rounded divide-y">
-      {items.map((t) => (
-        <div key={t.id} className="p-2">
-          <div className="font-semibold">{t.title_t ?? t.title}</div>
-          <div className="text-xs text-gray-500">{t.body_t ?? t.body}</div>
-          <div className="text-xs text-gray-500">
-            {t.authorName || "Anonymous"}
-            {t.createdAt ? ` ・ ${new Date(t.createdAt).toLocaleString()}` : ""}
-            {typeof t.postCount === "number" ? ` ・ ${t.postCount}件の返信` : ""}
-          </div>
-        </div>
-      ))}
+     {items.map((t) => (
+  <div key={t.id} className="p-2">
+    {/* タイトル行＋通報ボタン */}
+<div className="flex items-start justify-between gap-2">
+  <div className="font-semibold">
+    {t.title_t ?? t.title}
+  </div>
+
+  <div className="flex items-center gap-2">
+    <Link
+      href={`/board/${teamId}/thread/${t.id}`}
+      className="text-xs border rounded px-2 py-1 hover:bg-white/10"
+    >
+      Reply
+      {typeof t.postCount === "number" ? ` (${t.postCount})` : ""}
+    </Link>
+
+    <ReportButton kind="thread" targetId={Number(t.id)} />
+  </div>
+</div>
+
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+  {/* 原文 */}
+  <div>
+    <div className="text-[11px] text-gray-500">Original</div>
+    <div className="font-semibold whitespace-pre-wrap">{t.title}</div>
+    {t.body ? (
+      <div className="text-xs text-gray-500 whitespace-pre-wrap mt-1">{t.body}</div>
+    ) : null}
+  </div>
+
+  {/* 訳文 */}
+  <div>
+    <div className="text-[11px] text-gray-500">Translation</div>
+    <div className="font-semibold whitespace-pre-wrap">{t.title_t ?? t.title}</div>
+    {(t.body_t ?? t.body) ? (
+      <div className="text-xs text-gray-500 whitespace-pre-wrap mt-1">
+        {t.body_t ?? t.body}
+      </div>
+    ) : null}
+  </div>
+</div>
+
+    <div className="text-xs text-gray-500">{t.body_t ?? t.body}</div>
+    <div className="text-xs text-gray-500">
+      {t.authorName || "Anonymous"}
+      {t.createdAt ? ` ・ ${new Date(t.createdAt).toLocaleString()}` : ""}
+      {typeof t.postCount === "number" ? ` ・ ${t.postCount}件の返信` : ""}
+    </div>
+  </div>
+))}
+
     </div>
   );
 }
-

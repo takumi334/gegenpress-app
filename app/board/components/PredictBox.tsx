@@ -18,12 +18,29 @@ type PredictResp = {
   error?: string;
 };
 
-export default function PredictBox({ teamId }: { teamId: string }) {
-  const [data, setData] = useState<PredictResp | null>(null);
-  const [err, setErr] = useState<string>("");
+export default function PredictBox({
+  teamId,
+  initialData,
+}: {
+  teamId: string;
+  initialData?: PredictResp | null;
+}) {
+  const [data, setData] = useState<PredictResp | null>(
+    initialData && !initialData.error ? initialData : null,
+  );
+  const [err, setErr] = useState<string>(initialData?.error ?? "");
+
+  useEffect(() => {
+    setData(initialData && !initialData?.error ? initialData : null);
+    setErr(initialData?.error ?? "");
+  }, [initialData]);
 
   useEffect(() => {
     let abort = false;
+
+    // サーバーから初期データが供給された場合はフェッチ不要
+    if (initialData && !initialData.error) return;
+
     (async () => {
       try {
         const r = await fetch(`/api/predict?teamId=${teamId}`, { cache: "no-store" });
@@ -35,7 +52,7 @@ export default function PredictBox({ teamId }: { teamId: string }) {
       }
     })();
     return () => { abort = true; };
-  }, [teamId]);
+  }, [teamId, initialData]);
 
   if (err) return (
     <section className="border rounded p-3 mt-6">

@@ -1,4 +1,6 @@
+
 // app/api/translate/route.ts
+"use client";
 import { NextRequest, NextResponse } from "next/server";
 import { translateBatch } from "@/lib/translate"; // ← ここが通るようになる
 

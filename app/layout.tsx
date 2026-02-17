@@ -10,6 +10,7 @@ import SiteHeader from "./components/SiteHeader";      // ← ★これを追加
 import LanguageSwitcher from "./components/LanguageSwitcher";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
+import { Suspense } from "react";
 
 
 
@@ -21,6 +22,7 @@ export default async function RootLayout({ children }) {
       <body className="min-h-dvh bg-black text-white antialiased">
         {/* 👇 ここで包む */}
         <I18nUIProvider initialLocale={initialLocale}>
+          <Suspense fallback={null}>
           <AdBreakProvider>
             <div className="border-b border-white/10">
               <div className="mx-auto max-w-6xl p-4 flex items-center justify-between">
@@ -35,6 +37,7 @@ export default async function RootLayout({ children }) {
 
             <GrammarHints />
           </AdBreakProvider>
+            </Suspense>
         </I18nUIProvider>
       </body>
     </html>

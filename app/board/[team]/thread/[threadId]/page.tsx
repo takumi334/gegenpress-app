@@ -1,14 +1,14 @@
 // app/board/[team]/thread/[threadId]/page.tsx
-// app/board/[team]/thread/[threadId]/page.tsx
-import ThreadView from "./view"; // ← view.tsx を使うなら相対import
+import Threadview from "./view";
 
-export default async function Page({
-  params,
-}: {
-  params: { team: string; threadId: string };
-}) {
-  const resolved = await params;
-  return (<>
-    <ThreadView teamId={resolved.team} threadId={resolved.threadId} />
-  </>);
+type PageProps = {
+  params: Promise<{ team: string; threadId: string }>;
+};
+
+export default async function Page({ params }: PageProps) {
+  const resolved = await params; // ← ここがポイント（Promiseを解決）
+  const teamId = resolved.team;
+  const threadId = resolved.threadId;
+
+  return <Threadview teamId={teamId} threadId={threadId} />;
 }

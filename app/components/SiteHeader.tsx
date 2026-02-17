@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import GlobeTranslate from "@components/GlobeTranslate"; // ← 統一
+import SearchBox from "@/components/SearchBox";
 
 export default function SiteHeader() {
   return (
@@ -9,6 +12,11 @@ export default function SiteHeader() {
           GEGENPRESS
         </Link>
 
+    {/* ここが検索バー（ロゴ横） */}
+    <div className="flex-1 max-w-md">
+      <SearchBox />
+    </div>
+    
         <nav className="flex gap-4 text-sm">
           <Link href="/leagues/PL">PL</Link>
           <Link href="/leagues/PD">PD</Link>

@@ -18,7 +18,8 @@ async function fdFetch(path: string) {
   const url = `${FD_BASE}${path}`;
   const res = await fetch(url, {
     headers: { "X-Auth-Token": FD_KEY, Accept: "application/json" },
-    cache: "no-store",
+        cache: "force-cache",
+    next: { revalidate: 60 * 60 * 24 }, // 24h
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");

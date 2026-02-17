@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ReportButton from "@components/ReportButton";
 
 // ------- types -------
 type Post = {
@@ -68,20 +69,21 @@ export default function ThreadView({
         ) : null}
       </header>
 
-      <ul className="space-y-2">
-        {data.posts.length === 0 ? (
-          <li className="text-sm opacity-70">まだ投稿がありません。</li>
-        ) : (
-          data.posts.map((p) => (
-            <li key={p.id} className="border p-2 rounded">
-              <div className="text-xs opacity-60">
-                {p.authorName || "名無し"}・{new Date(p.createdAt).toLocaleString()}
-              </div>
-              <div className="whitespace-pre-wrap">{p.body}</div>
-            </li>
-          ))
-        )}
-      </ul>
+{data.posts.map((p) => (
+  <li key={p.id} className="border p-2 rounded">
+    <div className="flex items-start justify-between gap-2">
+      <div className="text-xs opacity-60">
+        {p.authorName || "名無し"}・{new Date(p.createdAt).toLocaleString()}
+      </div>
+
+      {/* ✅ 返信用 通報ボタン */}
+      <ReportButton kind="post" targetId={Number(p.id)} />
+    </div>
+
+    <div className="whitespace-pre-wrap mt-2">{p.body}</div>
+  </li>
+))}
+
 
       <ReplyForm
         threadId={threadId}

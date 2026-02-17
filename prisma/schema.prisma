@@ -1,33 +1,45 @@
-// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Thread {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   teamId    Int
   title     String
-  body      String    @default("")  // 追加
-  createdAt DateTime @default(now())
-
-  posts   Post[]   //　追加
-}
-
-
-model Post {
-  id        Int       @id @default(autoincrement())
-  threadId  Int
-  author    String?
   body      String    @default("")
   createdAt DateTime  @default(now())
-
-  thread    Thread    @relation(fields: [threadId], references: [id])
-
-  @@index([threadId, createdAt])
+  likes     Int       @default(0)
+  deletedAt DateTime?
+  posts     Post[]
+   @@map("スレッド")
 }
 
+model Post {
+  id        Int      @id @default(autoincrement())
+  threadId  Int
+  author    String?
+  body      String   @default("")
+  createdAt DateTime @default(now())
+  thread    Thread   @relation(fields: [threadId], references: [id])
+
+  @@index([threadId, createdAt])
+  @@map("投稿")
+}
+
+model Report {
+  id        Int      @id @default(autoincrement())
+  kind      String
+  targetId  Int
+  reason    String?
+  detail    String?
+  pageUrl   String?
+  ua        String?
+  ip        String?
+  createdAt DateTime @default(now())
+}

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { LEAGUES } from "@lib/leagues";
-import GlobeTranslate from "@components/GlobeTranslate";
+import Header from "@/components/Header";
+
 
 export default function HomePage() {
   return (
     <main className="relative min-h-dvh">
       <header className="px-6 py-10 md:py-14 flex justify-between">
         <h1 className="text-4xl font-extrabold text-white">GEGENPRESS</h1>
-        <GlobeTranslate />
       </header>
 
       <section className="px-6 pb-10">

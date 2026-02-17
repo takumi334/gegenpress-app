@@ -1,22 +1,47 @@
 // app/board/[team]/officialVideos.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Video = { id?: string; title: string; url?: string; publishedAt?: string; link?: string };
 
-export default function OfficialVideos({ teamName, limit }: { teamName: string; limit?: number }) {
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function OfficialVideos({
+  teamName,
+  limit,
+  initialVideos,
+  initialLang = "en",
+}: {
+  teamName: string;
+  limit?: number;
+  initialVideos?: Video[];
+  initialLang?: string;
+}) {
+  const [videos, setVideos] = useState<Video[]>(initialVideos ?? []);
+  const [loading, setLoading] = useState(!initialVideos);
+  const [lang, setLang] = useState(initialLang);
+
+  useEffect(() => {
+    setVideos(initialVideos ?? []);
+    setLoading(!initialVideos);
+    if (!initialVideos) setLang(initialLang);
+  }, [initialVideos, initialLang]);
 
   // UI言語（翻訳プロキシの tl 用）
-  const lang = useMemo(() => {
-    if (typeof window === "undefined") return "en";
-    return localStorage.getItem("baseLang") || localStorage.getItem("lang") || "en";
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = localStorage.getItem("baseLang") || localStorage.getItem("lang");
+    if (stored && stored !== lang) setLang(stored);
   }, []);
 
   useEffect(() => {
     let canceled = false;
+
+    if (initialVideos?.length) {
+      setLoading(false);
+      return () => {
+        canceled = true;
+      };
+    }
 
     (async () => {
       setLoading(true);
@@ -53,16 +78,12 @@ export default function OfficialVideos({ teamName, limit }: { teamName: string; 
     })();
 
     return () => { canceled = true; };
-  }, [teamName]);
+  }, [teamName, initialVideos]);
 
   if (loading && videos.length === 0) return <p>Loading videos…</p>;
   if (!videos.length) return <p>No videos found</p>;
 
   const list = limit ? videos.slice(0, limit) : videos;
-
-  // 既存ファイルをこの差分の通り修正してください
-
-// …（前半はそのまま）…
 
   return (
     <ul className="space-y-2">
