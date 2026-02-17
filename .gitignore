@@ -2,6 +2,8 @@
 node_modules/
 
 # 環境変数（秘密情報なので除外）
+prisma/dev.db
+prisma/dev.db.bak
 .env
 .env.local
 
