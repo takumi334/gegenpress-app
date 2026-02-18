@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { DeleteThreadButton } from "./DeleteThreadButton";
 
-
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export default async function AdminReportsPage() {
   const items = await prisma.report.findMany({
     orderBy: { createdAt: "desc" },
@@ -32,8 +33,8 @@ export default async function AdminReportsPage() {
               <td>{String(r.targetId)}</td>
               <td>{r.reason ?? ""}</td>
               <td>
-                {r.url ? (
-                  <a href={r.url} target="_blank" rel="noreferrer">
+                {r.pageUrl ? (
+                  <a href={r.pageUrl} target="_blank" rel="noreferrer">
                     open
                   </a>
                 ) : (

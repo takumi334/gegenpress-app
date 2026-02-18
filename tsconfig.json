@@ -1,37 +1,64 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
     "noEmit": true,
     "incremental": true,
-
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "esModuleInterop": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "forceConsistentCasingInFileNames": true,
-
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/*"],                     // ← ここを修正
-      "@app/*": ["app/*"],
-      "@components/*": ["app/components/*"],
-      "@lib/*": ["app/lib/*"],
-      "@board/*": ["app/board/*"],
-      "@board/components/*": ["app/board/components/*"]
+      "@/*": [
+        "app/*"
+      ], // ← ここを修正
+      "@app/*": [
+        "app/*"
+      ],
+      "@components/*": [
+        "app/components/*"
+      ],
+      "@lib/*": [
+        "app/lib/*"
+      ],
+      "@board/*": [
+        "app/board/*"
+      ],
+      "@board/components/*": [
+        "app/board/components/*"
+      ]
     },
-
     "outDir": "dist",
-    "types": ["node", "react", "react-dom"],
-    "plugins": [{ "name": "next" }]
+    "types": [
+      "node",
+      "react",
+      "react-dom"
+    ],
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
-
