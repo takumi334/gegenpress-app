@@ -163,13 +163,14 @@ export async function GET(req: NextRequest) {
     const summary = summarize(homeXg, awayXg, 6);
 
     return NextResponse.json({
-      fixture: {
-        utcDate: fixture.utcDate,
-        homeTeam: fixture?.homeTeam?.name,
-        awayTeam: fixture?.awayTeam?.name,
-        venue: fixture?.venue ?? null,
-        status: fixture?.status,
-      },
+     fixture: [{
+  utcDate: fixture?.utcDate ?? null,
+  homeTeam: fixture?.homeTeam?.name ?? null,
+  awayTeam: fixture?.awayTeam?.name ?? null,
+  venue: fixture?.venue ?? null,
+  status: fixture?.status ?? null,
+}],
+
       xg: { home: homeXg, away: awayXg },
       winProb: summary.winProb,
       topScores: summary.topScores, // [{h,a,p}, ...]

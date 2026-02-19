@@ -38,7 +38,9 @@ export default function NextMatchWidget({ teamId }: { teamId: number }) {
   if (loading) return <div className="border p-3 rounded">Loading next match…</div>;
   if (!match) return <div className="border p-3 rounded">No upcoming match.</div>;
 
-  const date = new Date(match.utcDate).toLocaleString();
+  const dt = match.utcDate ? new Date(match.utcDate) : null;
+const date = dt ? dt.toLocaleString() : "-";
+
   return (
     <div className="border p-3 rounded space-y-2">
       <div className="text-sm opacity-70">{match.competition?.name || "Next match"}</div>
