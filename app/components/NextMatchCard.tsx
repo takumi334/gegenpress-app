@@ -22,7 +22,7 @@ export default function NextMatchWidget({ teamId }: { teamId: number }) {
       const r = await fetch(`/api/next-fixture?teamId=${teamId}`, { cache: "no-store" });
       const data = await r.json();
       if (!mounted) return;
-      setMatch(data.match ?? null);
+      setMatch(data.fixture ?? null);
       if (data.match) {
         const h = data.match.homeTeam.id;
         const a = data.match.awayTeam.id;
