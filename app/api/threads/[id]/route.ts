@@ -1,6 +1,6 @@
 // app/api/threads/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma, { withPrismaRetry } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +16,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise< { id:
     return NextResponse.json({ error: "invalid id" }, { status: 400 });
   }
 
-  const thread = await prisma.thread.findUnique({
-    where: { id: index },
-    include: { posts: { orderBy: { createdAt: "asc" } } },
-  });
+  console.log("[GET /api/threads/[id]] thread.findUnique id=", index);
+  const thread = await withPrismaRetry("GET /api/threads/[id] thread.findUnique", () =>
+    prisma.thread.findUnique({
+      where: { id: index },
+      include: { posts: { orderBy: { createdAt: "asc" } } },
+    })
+  );
 
   if (!thread) {
     return NextResponse.json({ error: "thread not found" }, { status: 404 });

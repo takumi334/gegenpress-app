@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 
 type PredictResp = {
   fixture?: {
-    utcDate?: string;
-    homeTeam?: string;
-    awayTeam?: string;
+    utcDate?: string | null;
     venue?: string | null;
-    status?: string;
+    status?: string | null;
+    teams?: {
+      home?: { name?: string; logo?: string };
+      away?: { name?: string; logo?: string };
+    };
   };
   xg?: { home: number; away: number };
   winProb?: { home: number; draw: number; away: number };
@@ -80,12 +82,16 @@ export default function PredictBox({
   const f = data.fixture!;
   const dt = f.utcDate ? new Date(f.utcDate) : null;
 
-  // 現地時間（ユーザーのローカルタイムゾーン）
-  const localTime = dt ? dt.toLocaleString(undefined, {
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    dateStyle: "medium",
-    timeStyle: "short",
-  }) : "-";
+  const kickoffStr = dt
+    ? dt.toLocaleString(undefined, {
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   const pct = (x?: number) => (x == null ? "-" : `${(x * 100).toFixed(1)}%`);
   const num = (x?: number) => (x == null ? "-" : x.toFixed(2));
@@ -95,13 +101,23 @@ export default function PredictBox({
       <h3 className="text-lg font-semibold mb-3">Next fixture &amp; Prediction</h3>
 
       <div className="text-sm leading-6">
-        <div className="font-medium">
-          {f.homeTeam ?? "-"} vs {f.awayTeam ?? "-"}
+        <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
+          {f.teams?.home?.logo && (
+            <img src={f.teams.home.logo} alt="" className="w-5 h-5 object-contain" />
+          )}
+          {f.teams?.home?.name ?? "-"}
+          <span className="opacity-70 font-normal">vs</span>
+          {f.teams?.away?.name ?? "-"}
+          {f.teams?.away?.logo && (
+            <img src={f.teams.away.logo} alt="" className="w-5 h-5 object-contain" />
+          )}
         </div>
-        <div className="opacity-80">
-          {f.venue ? `${f.venue} ・ ` : ""}
-          {localTime}
-        </div>
+        {(kickoffStr || f.venue) && (
+          <div className="opacity-80 mt-0.5">
+            {f.venue ? `${f.venue} ・ ` : ""}
+            {kickoffStr ? `Kickoff: ${kickoffStr}` : ""}
+          </div>
+        )}
       </div>
 
       <div className="mt-3 text-sm">
@@ -115,21 +131,31 @@ export default function PredictBox({
         </div>
       </div>
 
-      {Array.isArray(data.topScores) && data.topScores.length > 0 && (
+      {Array.isArray(data.topScores) && data.topScores.length > 0 && (() => {
+        const topScorelines = data.topScores.slice(0, 5);
+        console.log("topScorelines:", topScorelines);
+        return (
         <div className="mt-3">
           <div className="text-sm font-medium mb-1">Top scorelines</div>
           <div className="flex flex-wrap gap-2">
-            {data.topScores.slice(0, 5).map((s, i) => (
-              <span
-                key={`${s.h}-${s.a}-${i}`}  // ←ユニークkey
-                className="text-xs px-2 py-1 border rounded bg-gray-50"
-              >
-                {s.h}-{s.a} ({(s.p * 100).toFixed(1)}%)
-              </span>
-            ))}
+            {topScorelines.map((s, i) => {
+              const label =
+                s?.h != null && s?.a != null
+                  ? `${s.h}-${s.a} (${((s.p ?? 0) * 100).toFixed(1)}%)`
+                  : "—";
+              return (
+                <span
+                  key={`${s?.h ?? ""}-${s?.a ?? ""}-${i}`}
+                  className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-sm bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  {label}
+                </span>
+              );
+            })}
           </div>
         </div>
-      )}
+        );
+      })()}
     </section>
   );
 }

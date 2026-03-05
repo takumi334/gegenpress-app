@@ -200,41 +200,49 @@ export default function GlobeTranslate() {
   }, []);
 
   return (
-    <div className="flex items-center gap-2">
-      <span aria-hidden>🌍</span>
+    <div className="flex flex-wrap items-center gap-2 min-w-[280px]">
+      <span aria-hidden className="shrink-0">🌍</span>
 
       {/* 母国語 */}
-      <label className="text-xs opacity-80">Native</label>
-      <select
-        value={baseLang}
-        onChange={(e) => onChangeBase(e.target.value)}
-        className="rounded-md bg-white/10 px-2 py-1 text-sm"
-        aria-label="Native language"
-      >
-        {opts.map((l) => (
-          <option key={l.language} value={l.language}>
-            {l.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex items-center gap-1 shrink-0">
+        <label className="text-xs opacity-80 whitespace-nowrap">Native</label>
+        <select
+          value={baseLang}
+          onChange={(e) => onChangeBase(e.target.value)}
+          className="rounded-md bg-white/10 px-2 py-1 text-sm min-w-[120px] w-auto"
+          aria-label="Native language"
+          style={{ maxWidth: "100%" }}
+        >
+          {opts.map((l) => (
+            <option key={l.language} value={l.language}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-      {/* 対象言語 */}
-      <label className="text-xs opacity-80">Target</label>
-      <select
-        value={targetLang}
-        onChange={(e) => onChangeTarget(e.target.value)}
-        className="rounded-md bg-white/10 px-2 py-1 text-sm"
-        aria-label="Target language"
-        disabled={loading}
-      >
-        {opts.map((l) => (
-          <option key={l.language} value={l.language}>
-            {l.name}
-          </option>
-        ))}
-      </select>
+      {/* 対象言語：w-full で次の行に折り返す */}
+      <div className="w-full">
+        <div className="flex items-center gap-1">
+          <label className="text-xs opacity-80 whitespace-nowrap shrink-0">Target</label>
+          <select
+            value={targetLang}
+            onChange={(e) => onChangeTarget(e.target.value)}
+            className="rounded-md bg-white/10 px-2 py-1 text-sm min-w-[200px] flex-1"
+            aria-label="Target language"
+            disabled={loading}
+            style={{ overflow: "visible" }}
+          >
+            {opts.map((l) => (
+              <option key={l.language} value={l.language}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-      {loading && <span className="text-xs opacity-80">Translating…</span>}
+      {loading && <span className="text-xs opacity-80 whitespace-nowrap shrink-0">Translating…</span>}
     </div>
   );
 }

@@ -90,6 +90,7 @@ type ThreadItem = {
   createdAt?: string;
   authorName?: string | null;
   postCount?: number;
+  threadType?: string | null;
 };
 
 async function loadThreads(teamId: string): Promise<ThreadItem[]> {
@@ -100,6 +101,8 @@ async function loadThreads(teamId: string): Promise<ThreadItem[]> {
       title: r.title,
       body: r.body || "",
       createdAt: r.createdAt?.toISOString?.() ?? undefined,
+      postCount: r.postCount ?? 0,
+      threadType: r.threadType ?? undefined,
     }));
   } catch (e) {
     console.error("listThreads failed", e);

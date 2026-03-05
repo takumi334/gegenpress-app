@@ -2,6 +2,8 @@
 import { NextRequest } from "next/server";
 import { listThreads, createThread } from "@/lib/boardApi";
 
+export const runtime = "nodejs";
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -13,13 +15,16 @@ export async function GET(req: NextRequest) {
     if (!Number.isInteger(teamId)) {
       return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400 });
     }
-
+    console.log("[GET /api/threads] listThreads teamId=", teamId);
     const threads = await listThreads(teamId);
     // フロントが配列/ items 両方に対応できるように配列を直接返す
     return Response.json(threads, { status: 200 });
   } catch (e: any) {
     console.error("GET /api/threads error:", e);
-    return new Response(JSON.stringify({ error: e?.message ?? "Server error" }), { status: 500 });
+    return Response.json(
+      { ok: false, error: e?.message ?? "Server error", code: e?.code },
+      { status: 500 }
+    );
   }
 }
 
@@ -38,11 +43,20 @@ export async function POST(req: NextRequest) {
     }
 
     const bodyText = typeof body === "string" ? body.trim() : undefined;
+    console.log("[POST /api/threads] createThread teamId=", t);
     const row = await createThread(t, title.trim(), bodyText);
     return Response.json(row, { status: 201 });
   } catch (e: any) {
-    console.error("POST /api/threads error:", e);
-    return new Response(JSON.stringify({ error: e?.message ?? "Server error" }), { status: 500 });
+    console.error("threads POST error", e);
+    return Response.json(
+      {
+        ok: false,
+        error: e?.message ?? "Server error",
+        code: e?.code,
+        message: e?.message,
+      },
+      { status: 500 }
+    );
   }
 }
 

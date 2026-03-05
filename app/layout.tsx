@@ -6,8 +6,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-import SiteHeader from "./components/SiteHeader";      // ← ★これを追加！
-import LanguageSwitcher from "./components/LanguageSwitcher";
+import SiteHeader from "./components/SiteHeader";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
 import { Suspense } from "react";
@@ -25,9 +24,8 @@ export default async function RootLayout({ children }) {
           <Suspense fallback={null}>
           <AdBreakProvider>
             <div className="border-b border-white/10">
-              <div className="mx-auto max-w-6xl p-4 flex items-center justify-between">
+              <div className="mx-auto max-w-6xl p-4">
                 <SiteHeader />
-                <LanguageSwitcher /> {/* Provider の内側 */}
               </div>
             </div>
 

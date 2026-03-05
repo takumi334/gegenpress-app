@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma, { withPrismaRetry } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 type Params = { params: { id: string } };
 
@@ -11,13 +13,14 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const updated = await prisma.thread.update({
+    console.log("[POST /api/threads/[id]/likes] thread.update id=", threadId);
+    const updated = await withPrismaRetry("POST /api/threads/[id]/likes thread.update", () => prisma.thread.update({
       where: { id: threadId },
       data: {
         likes: { increment: 1 },
       },
       select: { likes: true },
-    });
+    }));
 
     return NextResponse.json({ likes: updated.likes });
   } catch (error) {

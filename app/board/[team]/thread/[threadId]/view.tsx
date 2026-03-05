@@ -92,7 +92,7 @@ export default function ThreadView({
 
       <div>
         <a className="underline text-sm opacity-70" href={`/board/${teamId}`}>
-          ← 掲示板に戻る
+          ← Back to board
         </a>
       </div>
     </main>
@@ -132,7 +132,7 @@ export function ReplyForm({
       setBody("");
       onPosted(); // 再読み込み
     } catch (e: any) {
-      setErr(e?.message || "送信に失敗しました");
+      setErr(e?.message || "Failed to post");
     } finally {
       setBusy(false);
     }
@@ -142,19 +142,19 @@ export function ReplyForm({
     <form onSubmit={submit} className="space-y-2 p-3 border rounded">
       <input
         className="w-full border px-2 py-1"
-        placeholder="表示名（任意）"
+        placeholder="Display name (optional)"
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
       <textarea
         className="w-full border px-2 py-1 min-h-[100px]"
-        placeholder="本文"
+        placeholder="Share your thoughts..."
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
       {err && <div className="text-sm text-red-600">{err}</div>}
       <button disabled={!canSubmit || busy} className="px-3 py-1 border rounded">
-        {busy ? "送信中…" : "返信する"}
+        {busy ? "Posting…" : "Post reply"}
       </button>
     </form>
   );

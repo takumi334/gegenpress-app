@@ -9,14 +9,15 @@ datasource db {
 }
 
 model Thread {
-  id        Int       @id @default(autoincrement())
-  teamId    Int
-  title     String
-  body      String    @default("")
-  createdAt DateTime  @default(now())
-  likes     Int       @default(0)
-  deletedAt DateTime?
-  posts     Post[]
+  id         Int       @id @default(autoincrement())
+  teamId     Int
+  title      String
+  body       String    @default("")
+  threadType String?   // "lineup" | "halftime" | "postmatch" = 試合中スレ（翻訳しない）
+  createdAt  DateTime  @default(now())
+  likes      Int       @default(0)
+  deletedAt  DateTime?
+  posts      Post[]
 
   @@map("スレッド")
 }
@@ -43,4 +44,21 @@ model Report {
   ua        String?
   ip        String?
   createdAt DateTime @default(now())
+}
+
+model ScheduledPost {
+  id        Int       @id @default(autoincrement())
+  teamId    Int
+  fixtureId Int       @default(0)  // 0 = 不明、それ以外は API の fixture id
+  type      String    // "LINEUP" | "HALFTIME" | "POSTMATCH"
+  title     String
+  body      String    @default("")
+  runAt     DateTime
+  postedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([runAt])
+  @@index([postedAt])
+  @@unique([teamId, fixtureId, type])
+  @@map("scheduled_posts")
 }

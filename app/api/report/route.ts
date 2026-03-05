@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRetry } from "@/lib/prisma";
 import util from "node:util";
 import { Prisma } from "@prisma/client";
 import { sendReportMail } from "@/lib/reportMailer";
@@ -12,10 +12,13 @@ import { sendReportMail } from "@/lib/reportMailer";
  */
 export async function GET() {
   try {
-    const items = await prisma.report.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    });
+    console.log("[GET /api/report] report.findMany");
+    const items = await withPrismaRetry("GET /api/report report.findMany", () =>
+      prisma.report.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      })
+    );
 
     return NextResponse.json({ ok: true, items });
   } catch (e: unknown) {
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
     console.log("[/api/report][POST] content-type:", contentType);
     console.log("[/api/report][POST] raw body:", body);
 
-    const { kind, targetId, reason, detail, pageUrl } = (body ?? {}) as Record<
+    const { kind, targetId, reason, detail, pageUrl, teamId: bodyTeamId } = (body ?? {}) as Record<
       string,
       unknown
     >;
@@ -78,54 +81,44 @@ export async function POST(req: Request) {
       );
     }
 
-    const created = await prisma.report.create({
-      data: {
-        kind: kind.trim(),
-        targetId: targetIdNum,
-        reason:
-          typeof reason === "string" && reason.trim() ? reason.trim() : null,
-        detail:
-          typeof detail === "string" && detail.trim() ? detail.trim() : null,
-        pageUrl:
-          typeof pageUrl === "string" && pageUrl.trim() ? pageUrl.trim() : null,
-        ua,
-        ip: null, // 必要なら headers から取得
-      },
-    });
+    console.log("[POST /api/report] report.create");
+    const created = await withPrismaRetry("POST /api/report report.create", () =>
+      prisma.report.create({
+        data: {
+          kind: kind.trim(),
+          targetId: targetIdNum,
+          reason:
+            typeof reason === "string" && reason.trim() ? reason.trim() : null,
+          detail:
+            typeof detail === "string" && detail.trim() ? detail.trim() : null,
+          pageUrl:
+            typeof pageUrl === "string" && pageUrl.trim() ? pageUrl.trim() : null,
+          ua,
+          ip: null,
+        },
+      })
+    );
 
-console.log("[/api/report][POST] before sendReportMail");
+    // Report モデルに teamId はない。teamId はリクエスト body から渡す（例: /board/[teamId] から通報時）
+    const teamIdForMail =
+      bodyTeamId !== undefined && bodyTeamId !== null && Number.isFinite(Number(bodyTeamId))
+        ? Number(bodyTeamId)
+        : undefined;
 
-try {
-  const r = await sendReportMail({
-    id: created.id,
-    kind: created.kind,
-    targetId: created.targetId,
-    reason: created.reason,
-    teamId: created.teamId,
-    url: created.pageUrl,
-  });
-
-  console.log("[/api/report][POST] sendReportMail OK:", r);
-} catch (err) {
-  console.error("[/api/report][POST] sendReportMail failed:", err);
-}
-
-
-try {
-await sendReportMail({
-  id: created.id,
-  kind: created.kind,
-  targetId: created.targetId,
-  reason: created.reason,
-  teamId: created.teamId,
-  url: created.pageUrl, // or req.body.pageUrl
-});
-
-} catch (err) {
-  console.error("[/api/report][POST] sendReportMail failed:", err);
-  // ✅ メール失敗しても通報自体は成功にする
-}
-
+    try {
+      await sendReportMail({
+        id: created.id,
+        kind: created.kind,
+        targetId: created.targetId,
+        reason: created.reason,
+        teamId: teamIdForMail,
+        url: created.pageUrl ?? undefined,
+      });
+      console.log("[/api/report][POST] sendReportMail OK");
+    } catch (err) {
+      console.error("[/api/report][POST] sendReportMail failed:", err);
+      // メール失敗しても通報自体は成功にする
+    }
 
     console.log("[/api/report][POST] created:", created);
 

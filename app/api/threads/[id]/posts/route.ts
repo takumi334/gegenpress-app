@@ -1,6 +1,6 @@
 // app/api/threads/[id]/posts/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma"; // または { prisma } from "@/lib/db" に合わせて統一
+import prisma, { withPrismaRetry } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,11 +42,13 @@ export async function POST(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "invalid id" }, { status: 400 });
     }
 
-    // スレッドが存在するかチェック
-    const exists = await prisma.thread.findUnique({
-      where: { id: idNum },
-      select: { id: true },
-    });
+    console.log("[POST /api/threads/[id]/posts] thread.findUnique + post.create id=", idNum);
+    const exists = await withPrismaRetry("POST /api/threads/[id]/posts thread.findUnique", () =>
+      prisma.thread.findUnique({
+        where: { id: idNum },
+        select: { id: true },
+      })
+    );
 
     if (!exists) {
       return NextResponse.json(
@@ -55,15 +57,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
 
-    // 投稿を保存
-    const post = await prisma.post.create({
+    const post = await withPrismaRetry("POST /api/threads/[id]/posts post.create", () => prisma.post.create({
       data: {
         threadId: idNum,
         author: authorName,
         body,
       },
       select: { id: true, createdAt: true },
-    });
+    }));
 
     console.log("✅ 新規コメント保存:", post);
 

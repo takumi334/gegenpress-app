@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma, withPrismaRetry } from "@/lib/prisma";
 import { requireAdminFromRequest } from "@/lib/adminAuth";
+
+export const runtime = "nodejs";
 
 export async function DELETE(
   req: Request,
@@ -17,14 +19,18 @@ export async function DELETE(
       );
     }
 
-    await prisma.thread.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-
-    await prisma.report.deleteMany({
-      where: { kind: "thread", targetId: id },
-    });
+    console.log("[DELETE /api/admin/reports] thread.update + report.deleteMany id=", id);
+    await withPrismaRetry("DELETE /api/admin/reports thread.update", () =>
+      prisma.thread.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      })
+    );
+    await withPrismaRetry("DELETE /api/admin/reports report.deleteMany", () =>
+      prisma.report.deleteMany({
+        where: { kind: "thread", targetId: id },
+      })
+    );
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

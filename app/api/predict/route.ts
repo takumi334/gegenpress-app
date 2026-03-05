@@ -1,5 +1,8 @@
 // app/api/predict/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { ensureScheduledPostsForNextFixture } from "@/lib/server/scheduler";
+
+export const runtime = "nodejs";
 
 // ==== 環境変数 ====
 const FD_BASE = process.env.FD_BASE ?? "https://api.football-data.org/v4";
@@ -162,19 +165,40 @@ export async function GET(req: NextRequest) {
 
     const summary = summarize(homeXg, awayXg, 6);
 
-    return NextResponse.json({
-     fixture: [{
-  utcDate: fixture?.utcDate ?? null,
-  homeTeam: fixture?.homeTeam?.name ?? null,
-  awayTeam: fixture?.awayTeam?.name ?? null,
-  venue: fixture?.venue ?? null,
-  status: fixture?.status ?? null,
-}],
-
+    const payload = {
+      fixture: {
+        id: fixture?.id ?? null,
+        utcDate: fixture?.utcDate ?? null,
+        venue: fixture?.venue ?? null,
+        status: fixture?.status ?? null,
+        teams: {
+          home: {
+            name: fixture?.homeTeam?.name ?? null,
+            logo: fixture?.homeTeam?.crest ?? null,
+          },
+          away: {
+            name: fixture?.awayTeam?.name ?? null,
+            logo: fixture?.awayTeam?.crest ?? null,
+          },
+        },
+      },
       xg: { home: homeXg, away: awayXg },
       winProb: summary.winProb,
-      topScores: summary.topScores, // [{h,a,p}, ...]
-    });
+      topScores: summary.topScores,
+    };
+
+    try {
+      await ensureScheduledPostsForNextFixture(Number(teamId), {
+        fixtureId: fixture?.id ?? null,
+        utcDate: fixture.utcDate,
+        homeName: fixture?.homeTeam?.name ?? "Home",
+        awayName: fixture?.awayTeam?.name ?? "Away",
+      });
+    } catch (e) {
+      console.error("ensureScheduledPostsForNextFixture failed", e);
+    }
+
+    return NextResponse.json(payload);
   } catch (e: any) {
     console.error("predict route error:", e?.message || e);
     return serverError(e?.message || "internal error");

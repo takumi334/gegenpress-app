@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma, { withPrismaRetry } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 export async function DELETE(
   req: Request,
@@ -22,7 +24,10 @@ export async function DELETE(
     );
   }
 
-  await prisma.post.delete({ where: { id: postId } });
+  console.log("[DELETE /api/posts/[postid]] post.delete id=", postId);
+  await withPrismaRetry("DELETE /api/posts/[postid] post.delete", () =>
+    prisma.post.delete({ where: { id: postId } })
+  );
   return NextResponse.json({ ok: true });
 }
 

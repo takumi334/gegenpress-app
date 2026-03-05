@@ -97,7 +97,7 @@ if (!res.ok || !data) {
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="返信を書く…"
+          placeholder="Share your thoughts..."
           className="w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-xs"
           rows={2}
         />
@@ -106,7 +106,7 @@ if (!res.ok || !data) {
           disabled={sending || !body.trim()}
           className="rounded bg-white/10 px-3 py-1 text-xs hover:bg-white/20 disabled:opacity-40"
         >
-          返信する
+          Post reply
         </button>
       </form>
 

@@ -22,7 +22,21 @@ export default function NextMatchWidget({ teamId }: { teamId: number }) {
       const r = await fetch(`/api/next-fixture?teamId=${teamId}`, { cache: "no-store" });
       const data = await r.json();
       if (!mounted) return;
-      setMatch(data.fixture ?? null);
+      const m = data.match ?? data.fixture ?? null
+
+const normalized =
+  m && typeof m.homeTeam === "string"
+    ? {
+        utcDate: m.utcDate,
+        homeTeam: { id: Number(data.homeId ?? 0), name: m.homeTeam },
+        awayTeam: { id: Number(data.awayId ?? 0), name: m.awayTeam },
+        competition: m.competition,
+        venue: m.venue,
+      }
+    : m
+
+setMatch(normalized)
+
       if (data.match) {
         const h = data.match.homeTeam.id;
         const a = data.match.awayTeam.id;
@@ -47,18 +61,30 @@ const date = dt ? dt.toLocaleString() : "-";
       <div className="font-semibold">{match.homeTeam.name} vs {match.awayTeam.name}</div>
       <div className="text-sm">{date}</div>
 
-      {pred && (
+      {pred && (() => {
+        const topScorelines = pred.top ?? [];
+        console.log("topScorelines:", topScorelines);
+        return (
         <div className="mt-2">
           <div className="text-sm opacity-70">Expected goals (xG-like, simple)</div>
-          <div>{match.homeTeam.name}: {pred.exp.home.toFixed(2)} / {match.awayTeam.name}: {pred.exp.away.toFixed(2)}</div>
+          <div className="text-black dark:text-white">{match.homeTeam.name}: {pred.exp.home.toFixed(2)} / {match.awayTeam.name}: {pred.exp.away.toFixed(2)}</div>
           <div className="text-sm opacity-70 mt-2">Top scorelines</div>
           <ul className="list-disc pl-5">
-            {pred.top.map((t, i) => (
-              <li key={i}>{t.score}  ({(t.p*100).toFixed(1)}%)</li>
-            ))}
+            {topScorelines.map((t, i) => {
+              const label =
+                t?.score != null
+                  ? `${t.score} (${((t.p ?? 0) * 100).toFixed(1)}%)`
+                  : "—";
+              return (
+                <li key={i} className="text-slate-900 dark:text-slate-100">
+                  {label}
+                </li>
+              );
+            })}
           </ul>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
