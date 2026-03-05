@@ -2,13 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReportButton from "@components/ReportButton";
+import CommentLikeButton from "@board/components/CommentLikeButton";
+import { getOrCreateAnonId } from "@/lib/anonId";
 
 // ------- types -------
 type Post = {
   id: string;
   authorName: string | null;
   body: string;
-  createdAt: string; // APIからはISO文字列で来る想定
+  createdAt: string;
+  likeCount?: number;
+  likedByMe?: boolean;
 };
 
 type ThreadData = {
@@ -35,7 +39,11 @@ export default function ThreadView({
     setLoading(true);
     setErr(null);
     try {
-      const r = await fetch(`/api/threads/${threadId}`, { cache: "no-store" });
+      const anonId = getOrCreateAnonId();
+      const url = anonId
+        ? `/api/threads/${threadId}?anonId=${encodeURIComponent(anonId)}`
+        : `/api/threads/${threadId}`;
+      const r = await fetch(url, { cache: "no-store" });
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
@@ -69,20 +77,26 @@ export default function ThreadView({
         ) : null}
       </header>
 
-{data.posts.map((p) => (
-  <li key={p.id} className="border p-2 rounded">
-    <div className="flex items-start justify-between gap-2">
-      <div className="text-xs opacity-60">
-        {p.authorName || "名無し"}・{new Date(p.createdAt).toLocaleString()}
-      </div>
-
-      {/* ✅ 返信用 通報ボタン */}
-      <ReportButton kind="post" targetId={Number(p.id)} />
-    </div>
-
-    <div className="whitespace-pre-wrap mt-2">{p.body}</div>
-  </li>
-))}
+      <ul className="space-y-2 list-none p-0 m-0">
+        {data.posts.map((p) => (
+          <li key={p.id} className="border p-2 rounded">
+            <div className="flex items-start justify-between gap-2">
+              <div className="text-xs opacity-60">
+                {p.authorName || "名無し"}・{new Date(p.createdAt).toLocaleString()}
+              </div>
+              <div className="flex items-center gap-2">
+                <CommentLikeButton
+                  commentId={Number(p.id)}
+                  initialLikeCount={p.likeCount ?? 0}
+                  initialLikedByMe={p.likedByMe ?? false}
+                />
+                <ReportButton kind="post" targetId={Number(p.id)} />
+              </div>
+            </div>
+            <div className="whitespace-pre-wrap mt-2">{p.body}</div>
+          </li>
+        ))}
+      </ul>
 
 
       <ReplyForm

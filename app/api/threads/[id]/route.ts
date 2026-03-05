@@ -15,12 +15,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise< { id:
   if (isNaN(index) || index <= 0) {
     return NextResponse.json({ error: "invalid id" }, { status: 400 });
   }
+  const anonId = req.nextUrl.searchParams.get("anonId")?.trim() ?? "";
 
   console.log("[GET /api/threads/[id]] thread.findUnique id=", index);
   const thread = await withPrismaRetry("GET /api/threads/[id] thread.findUnique", () =>
     prisma.thread.findUnique({
       where: { id: index },
-      include: { posts: { orderBy: { createdAt: "asc" } } },
+      include: {
+        posts: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            _count: { select: { postLikes: true } },
+            ...(anonId ? { postLikes: { where: { anonId }, select: { id: true } } } : {}),
+          },
+        },
+      },
     })
   );
 
@@ -28,7 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise< { id:
     return NextResponse.json({ error: "thread not found" }, { status: 404 });
   }
 
-  // ★ ここを修正：UIが期待する形式（トップレベルに posts 配列）
   return NextResponse.json({
     id: thread.id,
     title: thread.title,
@@ -37,8 +45,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise< { id:
     posts: thread.posts.map((p) => ({
       id: p.id,
       author: p.author,
+      authorName: p.author ?? null,
       body: p.body,
       createdAt: p.createdAt,
+      likeCount: p._count.postLikes,
+      likedByMe: anonId ? ((p as { postLikes?: { id: number }[] }).postLikes?.length ?? 0) > 0 : false,
     })),
   });
 }

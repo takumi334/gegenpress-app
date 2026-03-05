@@ -23,15 +23,28 @@ model Thread {
 }
 
 model Post {
-  id        Int      @id @default(autoincrement())
-  threadId  Int
-  author    String?
-  body      String   @default("")
-  createdAt DateTime @default(now())
-  thread    Thread   @relation(fields: [threadId], references: [id])
+  id         Int       @id @default(autoincrement())
+  threadId   Int
+  author     String?
+  body       String    @default("")
+  createdAt  DateTime  @default(now())
+  thread     Thread    @relation(fields: [threadId], references: [id])
+  postLikes  PostLike[]
 
   @@index([threadId, createdAt])
   @@map("投稿")
+}
+
+model PostLike {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  anonId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, anonId])
+  @@index([postId])
+  @@map("post_likes")
 }
 
 model Report {
