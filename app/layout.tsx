@@ -1,19 +1,21 @@
 // app/layout.tsx
-import { getInitialLocale } from "@/lib/i18n";
-import { I18nUIProvider } from "@/lib/i18n-ui";
-// app/layout.tsx
 import "./globals.css";
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
-
+import { Suspense } from "react";
+import { getInitialLocale } from "@/lib/i18n";
+import { I18nUIProvider } from "@/lib/i18n-ui";
 import SiteHeader from "./components/SiteHeader";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
-import { Suspense } from "react";
+
+const GOOGLE_SITE_VERIFICATION = "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4";
 
 export const metadata: Metadata = {
   verification: {
-    google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
+    google: GOOGLE_SITE_VERIFICATION,
+  },
+  other: {
+    "google-site-verification": GOOGLE_SITE_VERIFICATION,
   },
 };
 
