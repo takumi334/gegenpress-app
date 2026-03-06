@@ -1,6 +1,5 @@
 // app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
 import { Suspense } from "react";
 import { getInitialLocale } from "@/lib/i18n";
 import { I18nUIProvider } from "@/lib/i18n-ui";
@@ -8,12 +7,9 @@ import SiteHeader from "./components/SiteHeader";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
 
-export const metadata: Metadata = {
+export const metadata = {
   verification: {
     google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
-  },
-  other: {
-    "google-site-verification": "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
   },
 };
 
