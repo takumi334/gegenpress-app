@@ -15,8 +15,8 @@ type Store = Map<string, Post[]>;
 const store: Store = (globalThis as any)[STORE_KEY] || new Map();
 (globalThis as any)[STORE_KEY] = store;
 
-export async function POST(req: NextRequest, { params }: { params: { team: string } }) {
-  const { team } = params;
+export async function POST(req: NextRequest, context: { params: Promise<{ team: string }> }) {
+  const { team } = await context.params;
   const { id, reason } = await req.json().catch(() => ({}));
   if (!id) {
     return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });

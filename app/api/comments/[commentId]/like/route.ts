@@ -3,10 +3,11 @@ import prisma, { withPrismaRetry } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-type Params = { params: Promise<{ commentId: string }> };
-
-export async function POST(req: NextRequest, { params }: Params) {
-  const { commentId: commentIdStr } = await params;
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ commentId: string }> }
+) {
+  const { commentId: commentIdStr } = await context.params;
   const commentId = Number(commentIdStr);
   if (!Number.isInteger(commentId) || commentId <= 0) {
     return NextResponse.json({ error: "invalid comment id" }, { status: 400 });

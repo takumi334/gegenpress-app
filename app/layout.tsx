@@ -18,7 +18,14 @@ export default async function RootLayout({ children }) {
   const initialLocale = await getInitialLocale();
 
   return (
-    <html lang={initialLocale} translate="no" className="notranslate" suppressHydrationWarning>
+    <html lang={initialLocale} translate="no" className="notranslate">
+      <head>
+        <meta
+          name="google-site-verification"
+          content="YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4"
+        />
+      </head>
+
       <body className="min-h-dvh bg-black text-white antialiased">
         {/* 👇 ここで包む */}
         <I18nUIProvider initialLocale={initialLocale}>

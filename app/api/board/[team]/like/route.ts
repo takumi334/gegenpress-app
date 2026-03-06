@@ -17,8 +17,8 @@ const store: Store = (globalThis as any)[STORE_KEY] || new Map();
 
 const USER_HEADER = "x-client-id"; // フロントと合わせる
 
-export async function POST(req: NextRequest, { params }: { params: { team: string } }) {
-  const { team } = params;
+export async function POST(req: NextRequest, context: { params: Promise<{ team: string }> }) {
+  const { team } = await context.params;
   const { id } = await req.json().catch(() => ({}));
   const uid = req.headers.get(USER_HEADER) || "";
 

@@ -1,17 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 import { requireAdminFromRequest } from "@/lib/adminAuth";
 
 export const runtime = "nodejs";
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{}> }
 ) {
   try {
     requireAdminFromRequest(req);
+    await context.params;
 
-    const id = Number(params.id);
+    const idStr = req.nextUrl.searchParams.get("id");
+    const id = Number(idStr);
     if (!Number.isFinite(id)) {
       return NextResponse.json(
         { ok: false, message: "invalid id" },

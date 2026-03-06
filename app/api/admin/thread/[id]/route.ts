@@ -1,9 +1,9 @@
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 
-function requireAdminKey(req: Request) {
+function requireAdminKey(req: NextRequest) {
   const got = (req.headers.get("x-admin-key") ?? "").trim();
   const expected = (process.env.ADMIN_KEY ?? "").trim();
 
@@ -13,13 +13,14 @@ function requireAdminKey(req: Request) {
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     requireAdminKey(req);
 
-    const id = Number(params.id);
+    const { id: idStr } = await context.params;
+    const id = Number(idStr);
     if (!Number.isFinite(id)) {
       return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
     }

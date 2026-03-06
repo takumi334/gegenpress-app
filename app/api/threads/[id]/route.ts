@@ -5,9 +5,9 @@ import prisma, { withPrismaRetry } from "@/lib/prisma";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: Promise< { id: string } > }) {
-  const resolved = await params;
-  const id = resolved.id?.trim();
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id: idParam } = await context.params;
+  const id = idParam?.trim();
   if (!id) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }

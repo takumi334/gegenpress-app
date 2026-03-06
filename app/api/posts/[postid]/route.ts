@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { postId: string } }
+  req: NextRequest,
+  context: { params: Promise<{ postid: string }> }
 ) {
   // ✅ 管理者キー確認
   const adminKey = req.headers.get("x-admin-key");
@@ -16,7 +16,8 @@ export async function DELETE(
     );
   }
 
-  const postId = Number(params.postId);
+  const { postid } = await context.params;
+  const postId = Number(postid);
   if (!Number.isFinite(postId)) {
     return NextResponse.json(
       { ok: false, message: "invalid postId" },

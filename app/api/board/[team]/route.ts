@@ -5,8 +5,9 @@ export const runtime = "edge";
 
 export async function GET(
   _req: NextRequest,
-  ctx: { params: { team: string } }
+  context: { params: Promise<{ team: string }> }
 ) {
+  await context.params; // consume for Next.js 16
   // いまは永続化しないダミー
   return NextResponse.json([], { status: 200 });
 }
