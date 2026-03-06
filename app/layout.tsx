@@ -9,6 +9,9 @@ import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
 
 export const metadata: Metadata = {
+  verification: {
+    google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
+  },
   other: {
     "google-site-verification": "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
   },
