@@ -10,20 +10,16 @@ import AdBreakProvider from "./components/AdBreakProvider";
 
 const GOOGLE_SITE_VERIFICATION = "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4";
 
-export const metadata: Metadata = {
-  verification: {
-    google: GOOGLE_SITE_VERIFICATION,
-  },
-  other: {
-    "google-site-verification": GOOGLE_SITE_VERIFICATION,
-  },
-};
+export const metadata: Metadata = {};
 
 export default async function RootLayout({ children }) {
   const initialLocale = await getInitialLocale();
 
   return (
     <html lang={initialLocale} translate="no" className="notranslate" suppressHydrationWarning>
+      <head>
+        <meta name="google-site-verification" content={GOOGLE_SITE_VERIFICATION} />
+      </head>
       <body className="min-h-dvh bg-black text-white antialiased">
         {/* 👇 ここで包む */}
         <I18nUIProvider initialLocale={initialLocale}>
