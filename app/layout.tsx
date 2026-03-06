@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   verification: {
     google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
   },
+  other: {
+    "google-site-verification": "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
+  },
 };
 
 export default async function RootLayout({ children }) {
@@ -27,7 +30,6 @@ export default async function RootLayout({ children }) {
       </head>
 
       <body className="min-h-dvh bg-black text-white antialiased">
-        {/* 👇 ここで包む */}
         <I18nUIProvider initialLocale={initialLocale}>
           <Suspense fallback={null}>
           <AdBreakProvider>
@@ -49,6 +51,4 @@ export default async function RootLayout({ children }) {
     </html>
   );
 }
-
-
 
