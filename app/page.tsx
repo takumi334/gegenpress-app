@@ -2,6 +2,11 @@ import Link from "next/link";
 import { LEAGUES } from "@lib/leagues";
 import Header from "@/components/Header";
 
+export const metadata = {
+  title: "Gegenpress | サッカー翻訳・試合予想・海外掲示板",
+  description:
+    "Gegenpressは、海外サッカーの翻訳付き掲示板と試合予想を楽しめるファンサイトです。クラブ別に議論しながら、海外の反応やスコア予想をまとめてチェックできます。",
+};
 
 export default function HomePage() {
   return (
