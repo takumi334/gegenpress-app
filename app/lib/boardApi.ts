@@ -37,6 +37,15 @@ export async function listThreads(teamId: number) {
   }));
 }
 
+export async function getThreadById(threadId: number) {
+  return withPrismaRetry("boardApi.getThreadById", () =>
+    prisma.thread.findUnique({
+      where: { id: threadId },
+      select: { id: true, teamId: true, title: true, body: true },
+    })
+  );
+}
+
 export async function createThread(teamId: number, title: string, body: string = "") {
   return withPrismaRetry("boardApi.createThread", () =>
     prisma.thread.create({
