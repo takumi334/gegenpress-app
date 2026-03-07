@@ -27,22 +27,22 @@ export default function NextMatchWidget({ teamId }: { teamId: number }) {
 const normalized =
   m && typeof m.homeTeam === "string"
     ? {
-        utcDate: m.utcDate,
-        homeTeam: { id: Number(data.homeId ?? 0), name: m.homeTeam },
-        awayTeam: { id: Number(data.awayId ?? 0), name: m.awayTeam },
-        competition: m.competition,
-        venue: m.venue,
+        utcDate: m?.utcDate,
+        homeTeam: { id: Number(data?.homeId ?? 0), name: m?.homeTeam ?? "—" },
+        awayTeam: { id: Number(data?.awayId ?? 0), name: m?.awayTeam ?? "—" },
+        competition: m?.competition,
+        venue: m?.venue,
       }
-    : m
+    : m;
 
-setMatch(normalized)
+      setMatch(normalized ?? null);
 
-      if (data.match) {
+      if (data?.match?.homeTeam?.id != null && data?.match?.awayTeam?.id != null) {
         const h = data.match.homeTeam.id;
         const a = data.match.awayTeam.id;
-        const pr = await fetch(`/api/predict?homeId=${h}&awayId=${a}`, { cache: "no-store" }).then(r=>r.json());
+        const pr = await fetch(`/api/predict?homeId=${h}&awayId=${a}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
         if (!mounted) return;
-        setPred(pr);
+        setPred(pr ?? null);
       }
       setLoading(false);
     })();
@@ -52,22 +52,25 @@ setMatch(normalized)
   if (loading) return <div className="border p-3 rounded">Loading next match…</div>;
   if (!match) return <div className="border p-3 rounded">No upcoming match.</div>;
 
-  const dt = match.utcDate ? new Date(match.utcDate) : null;
-const date = dt ? dt.toLocaleString() : "-";
+  const dt = match?.utcDate ? new Date(match.utcDate) : null;
+  const date = dt ? dt.toLocaleString() : "試合日時未設定";
 
   return (
     <div className="border p-3 rounded space-y-2">
-      <div className="text-sm opacity-70">{match.competition?.name || "Next match"}</div>
-      <div className="font-semibold">{match.homeTeam.name} vs {match.awayTeam.name}</div>
+      <div className="text-sm opacity-70">{match?.competition?.name || "Next match"}</div>
+      <div className="font-semibold">{match?.homeTeam?.name ?? "—"} vs {match?.awayTeam?.name ?? "—"}</div>
       <div className="text-sm">{date}</div>
 
       {pred && (() => {
-        const topScorelines = pred.top ?? [];
-        console.log("topScorelines:", topScorelines);
+        const topScorelines = pred?.top ?? [];
+        const exp = pred?.exp;
+        if (typeof console !== "undefined" && console.log) {
+          console.log("[NextMatchWidget] topScorelines:", topScorelines);
+        }
         return (
         <div className="mt-2">
           <div className="text-sm opacity-70">Expected goals (xG-like, simple)</div>
-          <div className="text-black dark:text-white">{match.homeTeam.name}: {pred.exp.home.toFixed(2)} / {match.awayTeam.name}: {pred.exp.away.toFixed(2)}</div>
+          <div className="text-black dark:text-white">{match?.homeTeam?.name ?? "—"}: {exp?.home != null ? exp.home.toFixed(2) : "—"} / {match?.awayTeam?.name ?? "—"}: {exp?.away != null ? exp.away.toFixed(2) : "—"}</div>
           <div className="text-sm opacity-70 mt-2">Top scorelines</div>
           <ul className="list-disc pl-5">
             {topScorelines.map((t, i) => {

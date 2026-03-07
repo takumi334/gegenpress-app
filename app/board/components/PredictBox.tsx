@@ -70,6 +70,10 @@ export default function PredictBox({
     </section>
   );
 
+  if (typeof console !== "undefined" && console.log) {
+    console.log("[PredictBox] data received", { teamId, hasFixture: Boolean(data?.fixture), message: data?.message, keys: data ? Object.keys(data) : [] });
+  }
+
   if (data.message) {
     return (
       <section className="border rounded p-3 mt-6">
@@ -79,8 +83,20 @@ export default function PredictBox({
     );
   }
 
-  const f = data.fixture!;
-  const dt = f.utcDate ? new Date(f.utcDate) : null;
+  const f = data?.fixture;
+  if (!f) {
+    if (typeof console !== "undefined" && console.log) {
+      console.log("[PredictBox] no fixture in data", { teamId, dataKeys: data ? Object.keys(data) : [] });
+    }
+    return (
+      <section className="border rounded p-3 mt-6">
+        <h3 className="text-lg font-semibold mb-2">Next fixture &amp; Prediction</h3>
+        <div className="opacity-80">データが見つかりません。試合が未設定の可能性があります。</div>
+      </section>
+    );
+  }
+
+  const dt = f?.utcDate ? new Date(f.utcDate) : null;
 
   const kickoffStr = dt
     ? dt.toLocaleString(undefined, {
@@ -102,20 +118,20 @@ export default function PredictBox({
 
       <div className="text-sm leading-6">
         <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
-          {f.teams?.home?.logo && (
+          {f?.teams?.home?.logo && (
             <img src={f.teams.home.logo} alt="" className="w-5 h-5 object-contain" />
           )}
-          {f.teams?.home?.name ?? "-"}
+          {f?.teams?.home?.name ?? "-"}
           <span className="opacity-70 font-normal">vs</span>
-          {f.teams?.away?.name ?? "-"}
-          {f.teams?.away?.logo && (
+          {f?.teams?.away?.name ?? "-"}
+          {f?.teams?.away?.logo && (
             <img src={f.teams.away.logo} alt="" className="w-5 h-5 object-contain" />
           )}
         </div>
-        {(kickoffStr || f.venue) && (
+        {(kickoffStr || f?.venue) && (
           <div className="opacity-80 mt-0.5">
-            {f.venue ? `${f.venue} ・ ` : ""}
-            {kickoffStr ? `Kickoff: ${kickoffStr}` : ""}
+            {f?.venue ? `${f.venue} ・ ` : ""}
+            {kickoffStr ? `Kickoff: ${kickoffStr}` : "試合日時未設定"}
           </div>
         )}
       </div>

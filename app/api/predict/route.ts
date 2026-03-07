@@ -52,7 +52,9 @@ async function weightedStatsSplit(teamId: string) {
   };
 
   for (const m of matches) {
-    const d = new Date(m.utcDate).getTime();
+    const utc = m?.utcDate;
+    if (utc == null) continue;
+    const d = new Date(utc).getTime();
     const daysAgo = Math.max(0, (now - d) / 86400000);
     const w = expWeight(daysAgo, 120);
 
@@ -81,15 +83,16 @@ async function weightedStatsSplit(teamId: string) {
 // 次節（SCHEDULED）取得。無ければ FUTURE の最も近い試合へフォールバック
 async function getNextFixture(teamId: string) {
   const j1 = await fdFetch(`/teams/${teamId}/matches?status=SCHEDULED`);
-  let m = Array.isArray(j1?.matches) ? j1.matches?.[0] : undefined;
+  const firstScheduled = Array.isArray(j1?.matches) ? j1.matches?.[0] : undefined;
+  let m = firstScheduled?.utcDate != null ? firstScheduled : undefined;
 
   if (!m) {
     const j2 = await fdFetch(`/teams/${teamId}/matches?status=TIMED,POSTPONED`);
     const arr: any[] = Array.isArray(j2?.matches) ? j2.matches : [];
-    // 未来で一番近いもの
+    const now = Date.now();
     m = arr
-      .filter(x => new Date(x.utcDate).getTime() > Date.now())
-      .sort((a,b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime())[0];
+      .filter((x) => x?.utcDate != null && new Date(x.utcDate).getTime() > now)
+      .sort((a, b) => (new Date(a?.utcDate ?? 0).getTime()) - (new Date(b?.utcDate ?? 0).getTime()))[0];
   }
 
   return m; // undefined のまま返ることもある
@@ -147,6 +150,9 @@ export async function GET(req: NextRequest) {
     }
 
     const fixture = await getNextFixture(teamId);
+    if (typeof console !== "undefined" && console.log) {
+      console.log("[predict] getNextFixture result", { teamId, hasFixture: Boolean(fixture), utcDate: fixture?.utcDate });
+    }
     if (!fixture) {
       return NextResponse.json({ message: "No upcoming fixture found." }, { status: 200 });
     }
@@ -190,7 +196,7 @@ export async function GET(req: NextRequest) {
     try {
       await ensureScheduledPostsForNextFixture(Number(teamId), {
         fixtureId: fixture?.id ?? null,
-        utcDate: fixture.utcDate,
+        utcDate: fixture?.utcDate ?? "",
         homeName: fixture?.homeTeam?.name ?? "Home",
         awayName: fixture?.awayTeam?.name ?? "Away",
       });
