@@ -62,29 +62,30 @@ const normalized =
       <div className="text-sm">{date}</div>
 
       {pred && (() => {
-        const topScorelines = pred?.top ?? [];
+        const topScorelines = Array.isArray(pred?.top) ? pred.top.filter((t) => t?.score != null) : [];
         const exp = pred?.exp;
-        if (typeof console !== "undefined" && console.log) {
-          console.log("[NextMatchWidget] topScorelines:", topScorelines);
-        }
         return (
         <div className="mt-2">
           <div className="text-sm opacity-70">Expected goals (xG-like, simple)</div>
           <div className="text-black dark:text-white">{match?.homeTeam?.name ?? "—"}: {exp?.home != null ? exp.home.toFixed(2) : "—"} / {match?.awayTeam?.name ?? "—"}: {exp?.away != null ? exp.away.toFixed(2) : "—"}</div>
-          <div className="text-sm opacity-70 mt-2">Top scorelines</div>
-          <ul className="list-disc pl-5">
-            {topScorelines.map((t, i) => {
-              const label =
-                t?.score != null
-                  ? `${t.score} (${((t.p ?? 0) * 100).toFixed(1)}%)`
-                  : "—";
-              return (
-                <li key={i} className="text-slate-900 dark:text-slate-100">
-                  {label}
-                </li>
-              );
-            })}
-          </ul>
+          {topScorelines.length > 0 && (
+            <>
+              <div className="text-sm opacity-70 mt-2">Top scorelines</div>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {topScorelines.map((t, i) => {
+                  const label = `${t.score} (${((t.p ?? 0) * 100).toFixed(1)}%)`;
+                  return (
+                    <span
+                      key={`${t.score}-${i}`}
+                      className="inline-flex items-center justify-center min-w-0 rounded-md px-3 py-1 text-sm font-medium bg-sky-400/20 border border-sky-300 text-sky-900 dark:text-sky-200 whitespace-nowrap"
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
         );
       })()}
