@@ -5,11 +5,11 @@ import Link from "next/link";
 import ReportButton from "@components/ReportButton";
 import { useT } from "@/lib/NativeLangProvider";
 import { usePostTranslation } from "@/lib/PostTranslationContext";
-import CommentLikeButton from "@board/components/CommentLikeButton";
+import CommentLikeButton from "@/board/components/CommentLikeButton";
 import { getOrCreateAnonId } from "@/lib/anonId";
 import { canCreateTacticsBoard, normalizeThreadType, THREAD_TYPE } from "@/lib/threadType";
 import TacticsLineupThumbnail from "@components/lineup/TacticsLineupThumbnail";
-import { PostBodyNativeOnly, PostBodyTranslationOnly } from "@board/components/PostBodyRenderer";
+import { PostBodyNativeOnly, PostBodyTranslationOnly } from "@/board/components/PostBodyRenderer";
 import { lineupPayloadToTacticsBoardData, type LineupTacticPayload } from "@/lib/lineupTacticData";
 import { stripDataUrlsFromText } from "@/lib/tacticsPostBody";
 

@@ -3,8 +3,8 @@
  * uiLanguage（UI言語）に基づいて表示言語を切り替える。投稿の Native/Target とは別。
  */
 
-import ja from "@/../translations/ja.json";
-import en from "@/../translations/en.json";
+import ja from "../../translations/ja.json";
+import en from "../../translations/en.json";
 
 export type SupportedLang = "ja" | "en";
 
