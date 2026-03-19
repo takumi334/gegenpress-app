@@ -2,27 +2,51 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DrawingStroke } from "@/lib/tacticsPlacements";
+import { drawSingleStroke, drawStrokeList } from "@/lib/tacticsStrokeDraw";
 
 type PenColor = "red" | "blue" | "erase";
+
+export type DrawToolKind = "freehand" | "line" | "arrow";
 
 type TacticsDrawingCanvasProps = {
   strokes: DrawingStroke[];
   onChange: (strokes: DrawingStroke[]) => void;
   penColor: PenColor;
+  /** ペン色が赤/青のときの線幅（消しゴムは固定幅） */
+  penLineWidth: number;
+  drawTool: DrawToolKind;
   enabled: boolean;
   className?: string;
 };
+
+function buildStroke(
+  color: PenColor,
+  points: { x: number; y: number }[],
+  opts: { arrow?: boolean; lineWidth?: number }
+): DrawingStroke {
+  const c = color === "erase" ? "erase" : color;
+  const stroke: DrawingStroke = { color: c, points };
+  if (opts.arrow) stroke.arrow = true;
+  if (c !== "erase" && opts.lineWidth != null) stroke.lineWidth = opts.lineWidth;
+  return stroke;
+}
 
 export default function TacticsDrawingCanvas({
   strokes,
   onChange,
   penColor,
+  penLineWidth,
+  drawTool,
   enabled,
   className = "",
 }: TacticsDrawingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const strokesRef = useRef(strokes);
+  strokesRef.current = strokes;
   const [isDrawing, setIsDrawing] = useState(false);
-  const currentStrokeRef = useRef<{ color: string; points: { x: number; y: number }[] } | null>(null);
+  const currentStrokeRef = useRef<DrawingStroke | null>(null);
+  const lineStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lineEndRef = useRef<{ x: number; y: number } | null>(null);
 
   const getCoord = useCallback(
     (e: React.PointerEvent | PointerEvent): { x: number; y: number } | null => {
@@ -50,34 +74,26 @@ export default function TacticsDrawingCanvas({
 
     const w = rect.width;
     const h = rect.height;
-    const toPx = (p: { x: number; y: number }) => ({
-      x: (p.x / 100) * w,
-      y: (p.y / 100) * h,
-    });
 
-    [...strokes, currentStrokeRef.current].filter(Boolean).forEach((stroke) => {
-      const s = stroke!;
-      if (s.points.length < 2) return;
-      ctx.beginPath();
-      const first = toPx(s.points[0]);
-      ctx.moveTo(first.x, first.y);
-      for (let i = 1; i < s.points.length; i++) {
-        const pt = toPx(s.points[i]);
-        ctx.lineTo(pt.x, pt.y);
-      }
-      ctx.strokeStyle = s.color === "erase" ? "transparent" : s.color === "red" ? "#ef4444" : "#3b82f6";
-      ctx.lineWidth = s.color === "erase" ? 24 : 4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      if (s.color === "erase") {
-        ctx.globalCompositeOperation = "destination-out";
-      } else {
-        ctx.globalCompositeOperation = "source-over";
-      }
-      ctx.stroke();
-      ctx.globalCompositeOperation = "source-over";
-    });
-  }, [strokes]);
+    let preview: DrawingStroke | null = null;
+    if (
+      (drawTool === "line" || drawTool === "arrow") &&
+      isDrawing &&
+      lineStartRef.current &&
+      lineEndRef.current
+    ) {
+      preview = buildStroke(penColor, [lineStartRef.current, lineEndRef.current], {
+        arrow: drawTool === "arrow",
+        lineWidth: penLineWidth,
+      });
+    }
+
+    drawStrokeList(ctx, strokes, w, h, preview);
+
+    if (drawTool === "freehand" && currentStrokeRef.current && currentStrokeRef.current.points.length >= 1) {
+      drawSingleStroke(ctx, currentStrokeRef.current, w, h);
+    }
+  }, [strokes, penColor, penLineWidth, drawTool, isDrawing]);
 
   useEffect(() => {
     drawStrokes();
@@ -90,37 +106,71 @@ export default function TacticsDrawingCanvas({
       const pt = getCoord(e);
       if (!pt) return;
       setIsDrawing(true);
-      currentStrokeRef.current = {
-        color: penColor === "erase" ? "erase" : penColor,
-        points: [pt],
-      };
+
+      if (drawTool === "freehand") {
+        currentStrokeRef.current = buildStroke(penColor, [pt], { lineWidth: penLineWidth });
+        lineStartRef.current = null;
+        lineEndRef.current = null;
+      } else {
+        currentStrokeRef.current = null;
+        lineStartRef.current = pt;
+        lineEndRef.current = pt;
+      }
       drawStrokes();
     },
-    [enabled, penColor, getCoord, drawStrokes]
+    [enabled, penColor, penLineWidth, drawTool, getCoord, drawStrokes]
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!enabled || !isDrawing || !currentStrokeRef.current) return;
+      if (!enabled || !isDrawing) return;
       e.preventDefault();
       const pt = getCoord(e);
       if (!pt) return;
-      currentStrokeRef.current.points.push(pt);
-      drawStrokes();
+
+      if (drawTool === "freehand" && currentStrokeRef.current) {
+        currentStrokeRef.current.points.push(pt);
+        drawStrokes();
+      } else if ((drawTool === "line" || drawTool === "arrow") && lineStartRef.current) {
+        lineEndRef.current = pt;
+        drawStrokes();
+      }
     },
-    [enabled, isDrawing, getCoord, drawStrokes]
+    [enabled, isDrawing, drawTool, getCoord, drawStrokes]
   );
 
   const handlePointerUp = useCallback(() => {
-    if (!isDrawing || !currentStrokeRef.current) return;
-    const stroke = currentStrokeRef.current;
-    currentStrokeRef.current = null;
-    setIsDrawing(false);
-    if (stroke.points.length >= 2) {
-      onChange([...strokes, stroke]);
+    if (!isDrawing) return;
+
+    if (drawTool === "freehand" && currentStrokeRef.current) {
+      const stroke = currentStrokeRef.current;
+      currentStrokeRef.current = null;
+      setIsDrawing(false);
+      if (stroke.points.length >= 2) {
+        onChange([...strokesRef.current, stroke]);
+      }
+      drawStrokes();
+      return;
     }
-    drawStrokes();
-  }, [isDrawing, strokes, onChange, drawStrokes]);
+
+    if ((drawTool === "line" || drawTool === "arrow") && lineStartRef.current && lineEndRef.current) {
+      const a = lineStartRef.current;
+      const b = lineEndRef.current;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      if (dx * dx + dy * dy > 0.01) {
+        const stroke = buildStroke(penColor, [a, b], {
+          arrow: drawTool === "arrow",
+          lineWidth: penLineWidth,
+        });
+        onChange([...strokesRef.current, stroke]);
+      }
+      lineStartRef.current = null;
+      lineEndRef.current = null;
+      setIsDrawing(false);
+      drawStrokes();
+    }
+  }, [isDrawing, drawTool, onChange, penColor, penLineWidth, drawStrokes]);
 
   const handlePointerLeave = useCallback(() => {
     if (isDrawing) handlePointerUp();

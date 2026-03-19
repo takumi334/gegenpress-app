@@ -45,7 +45,17 @@
     "noNote": "（メモなし）",
     "fetchFailed": "取得に失敗しました",
     "memoPlaceholder": "メモを入力…",
-    "save": "保存"
+    "save": "保存",
+    "drawTools": "描画",
+    "freehand": "ペン",
+    "line": "直線",
+    "arrow": "矢印",
+    "lineWidth": "太さ",
+    "viewerHint": "閲覧専用です。配置や線を変えるには「編集」へ。",
+    "editBoard": "作戦ボードを編集",
+    "newBoard": "新規作戦ボード",
+    "updateSubmit": "変更を保存",
+    "backToView": "閲覧に戻る"
   },
   "thread": {
     "preMatchThread": "試合前スレ",

@@ -7,12 +7,28 @@ import type { LineupBuilderData } from "@components/lineup/TacticsLineupBuilder"
 import { TACTICS_MOCK_PLAYERS } from "@/lib/tacticsPlayers";
 import { assignmentsToPlacements } from "@/lib/tacticsPlacements";
 import { getFormation } from "@/lib/formations";
+import type { FormationId } from "@/lib/formations";
+import type { TacticsSlotAssignments } from "@components/lineup/TacticsPitchBoard";
+import type { DrawingStroke } from "@/lib/tacticsPlacements";
+import type { SlotPositions, BallPosition } from "@components/lineup/TacticsPitchBoard";
 
 export type TacticsBoardEditorProps = {
   teamId: string;
   threadId: string;
   onSaved: () => void;
   variant?: "full" | "compact";
+  /** 指定時は PATCH で既存ボードを更新 */
+  editBoardId?: number;
+  initialTitle?: string;
+  initialBody?: string;
+  initialFormation?: FormationId;
+  initialAssignments?: TacticsSlotAssignments;
+  initialAnimationFrames?: {
+    slotPositions: SlotPositions;
+    ballPosition: BallPosition;
+    strokes: DrawingStroke[];
+  }[];
+  initialCurrentFrame?: number;
 };
 
 export function TacticsBoardEditor({
@@ -20,15 +36,26 @@ export function TacticsBoardEditor({
   threadId,
   onSaved,
   variant = "full",
+  editBoardId,
+  initialTitle = "",
+  initialBody = "",
+  initialFormation = "4-3-3",
+  initialAssignments = {},
+  initialAnimationFrames,
+  initialCurrentFrame = 0,
 }: TacticsBoardEditorProps) {
   const t = useT();
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [title, setTitle] = useState(initialTitle);
+  const [body, setBody] = useState(initialBody);
+  const firstFrameIdx =
+    initialAnimationFrames && initialAnimationFrames.length > 0
+      ? Math.min(initialCurrentFrame, initialAnimationFrames.length - 1)
+      : 0;
   const [lineupData, setLineupData] = useState<LineupBuilderData>({
-    formation: "4-3-3",
-    assignments: {},
-    slotPositions: {},
-    strokes: [],
+    formation: initialFormation,
+    assignments: initialAssignments,
+    slotPositions: initialAnimationFrames?.[firstFrameIdx]?.slotPositions ?? {},
+    strokes: initialAnimationFrames?.[firstFrameIdx]?.strokes ?? [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,9 +90,13 @@ export function TacticsBoardEditor({
         dataPayload.animationFrames = frames as any;
         dataPayload.currentFrame = currentFrame;
       }
-      const hasContent = placements.length > 0 || strokes.length > 0;
-      const res = await fetch(`/api/threads/${threadId}/tactics-boards`, {
-        method: "POST",
+      const anyFrameStrokes = frames?.some((f) => (f.strokes?.length ?? 0) > 0) ?? false;
+      const hasContent = placements.length > 0 || strokes.length > 0 || anyFrameStrokes;
+      const url = editBoardId
+        ? `/api/threads/${threadId}/tactics-boards/${editBoardId}`
+        : `/api/threads/${threadId}/tactics-boards`;
+      const res = await fetch(url, {
+        method: editBoardId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim() || null,
@@ -102,7 +133,9 @@ export function TacticsBoardEditor({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t("tactics.title")}</h2>
+      <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+        {editBoardId ? t("tactics.editBoard") : t("tactics.title")}
+      </h2>
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           {t("tactics.titleOptional")}
@@ -120,8 +153,12 @@ export function TacticsBoardEditor({
           {t("tactics.lineupLabel")}
         </h3>
         <TacticsLineupBuilder
+          key={editBoardId != null ? `edit-${editBoardId}` : "create"}
           players={TACTICS_MOCK_PLAYERS}
-          initialFormation="4-3-3"
+          initialFormation={initialFormation}
+          initialAssignments={initialAssignments}
+          initialAnimationFrames={initialAnimationFrames}
+          initialCurrentFrame={initialCurrentFrame}
           onChange={handleLineupChange}
         />
       </div>
@@ -142,7 +179,7 @@ export function TacticsBoardEditor({
         disabled={saving}
         className="px-4 py-2 rounded font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
       >
-        {saving ? t("tactics.saving") : t("tactics.submit")}
+        {saving ? t("tactics.saving") : editBoardId ? t("tactics.updateSubmit") : t("tactics.submit")}
       </button>
     </form>
   );

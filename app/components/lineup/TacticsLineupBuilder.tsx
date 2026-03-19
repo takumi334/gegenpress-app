@@ -15,6 +15,7 @@ import type { DrawingStroke } from "@/lib/tacticsPlacements";
 import FormationSelector from "./FormationSelector";
 import TacticsPitchBoard from "./TacticsPitchBoard";
 import TacticsBoardToolbar, { type BoardMode, type PenColor } from "./TacticsBoardToolbar";
+import type { DrawToolKind } from "./TacticsDrawingCanvas";
 import PlayerChip from "./PlayerChip";
 import { useT } from "@/lib/NativeLangProvider";
 import type { TacticsPlayer } from "@/lib/tacticsPlayers";
@@ -33,14 +34,34 @@ export type LineupBuilderData = {
   currentFrame?: number;
 };
 
+type BuilderFrame = {
+  slotPositions: SlotPositions;
+  ballPosition: BallPosition;
+  strokes: DrawingStroke[];
+};
+
 type TacticsLineupBuilderProps = {
   players: TacticsPlayer[];
   initialFormation?: FormationId;
   initialAssignments?: TacticsSlotAssignments;
   initialSlotPositions?: SlotPositions;
   initialStrokes?: DrawingStroke[];
+  /** 4フレーム分を渡すとアニメ・線を復元（編集画面用） */
+  initialAnimationFrames?: BuilderFrame[];
+  initialCurrentFrame?: number;
   onChange?: (data: LineupBuilderData) => void;
 };
+
+function cloneFrame(f: BuilderFrame): BuilderFrame {
+  return {
+    slotPositions: { ...f.slotPositions },
+    ballPosition: f.ballPosition ? { ...f.ballPosition } : null,
+    strokes: f.strokes.map((s) => ({
+      ...s,
+      points: s.points.map((p) => ({ ...p })),
+    })),
+  };
+}
 
 export default function TacticsLineupBuilder({
   players,
@@ -48,29 +69,49 @@ export default function TacticsLineupBuilder({
   initialAssignments = {},
   initialSlotPositions = {},
   initialStrokes = [],
+  initialAnimationFrames,
+  initialCurrentFrame = 0,
   onChange,
 }: TacticsLineupBuilderProps) {
   const t = useT();
   const [formation, setFormation] = useState<FormationId>(initialFormation);
   const [assignments, setAssignments] = useState<TacticsSlotAssignments>(initialAssignments);
-  const [frames, setFrames] = useState<
-    {
-      slotPositions: SlotPositions;
-      ballPosition: BallPosition;
-      strokes: DrawingStroke[];
-    }[]
-  >(() => {
+  const [frames, setFrames] = useState<BuilderFrame[]>(() => {
+    if (initialAnimationFrames && initialAnimationFrames.length > 0) {
+      const src = initialAnimationFrames;
+      return [0, 1, 2, 3].map((idx) => {
+        const f = src[idx] ?? src[src.length - 1];
+        return cloneFrame(f);
+      });
+    }
     const basePositions = initialSlotPositions;
     return Array.from({ length: 4 }).map((_, idx) => ({
-      slotPositions: idx === 0 ? basePositions : { ...basePositions },
+      slotPositions: idx === 0 ? { ...basePositions } : { ...basePositions },
       ballPosition: { x: 50, y: 50 },
-      strokes: [],
+      strokes: idx === 0 ? [...initialStrokes] : [],
     }));
   });
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [strokes, setStrokes] = useState<DrawingStroke[]>(initialStrokes);
+  const [currentFrame, setCurrentFrame] = useState(() => {
+    if (initialAnimationFrames?.length) {
+      const max = initialAnimationFrames.length - 1;
+      return Math.min(Math.max(0, initialCurrentFrame), max);
+    }
+    return Math.min(Math.max(0, initialCurrentFrame), 3);
+  });
+  const [strokes, setStrokes] = useState<DrawingStroke[]>(() => {
+    if (initialAnimationFrames && initialAnimationFrames.length > 0) {
+      const i = Math.min(Math.max(0, initialCurrentFrame), initialAnimationFrames.length - 1);
+      return initialAnimationFrames[i]?.strokes?.map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({ ...p })),
+      })) ?? [];
+    }
+    return [...initialStrokes];
+  });
   const [mode, setMode] = useState<BoardMode>("placement");
   const [penColor, setPenColor] = useState<PenColor>("red");
+  const [drawTool, setDrawTool] = useState<DrawToolKind>("freehand");
+  const [penLineWidth, setPenLineWidth] = useState(4);
 
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -368,6 +409,10 @@ export default function TacticsLineupBuilder({
           onPenColorChange={setPenColor}
           onClearAll={handleClearAll}
           penModeActive={mode === "pen"}
+          drawTool={drawTool}
+          onDrawToolChange={setDrawTool}
+          penLineWidth={penLineWidth}
+          onPenLineWidthChange={setPenLineWidth}
         />
         <FormationSelector value={formation} onChange={onFormationChange} />
         <div className="flex flex-col gap-2 items-center">
@@ -420,6 +465,8 @@ export default function TacticsLineupBuilder({
             strokes={strokes}
             onStrokesChange={handleStrokesChange}
             penColor={penColor}
+            penLineWidth={penLineWidth}
+            drawTool={drawTool}
             penModeActive={mode === "pen"}
             ballPosition={ballPosition}
             onBallPositionChange={handleBallPositionChange}

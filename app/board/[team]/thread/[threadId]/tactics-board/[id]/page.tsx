@@ -3,8 +3,8 @@
 import { useMemo, useEffect, useState } from "react";
 import Link from "next/link";
 import TacticsLineupView from "@components/lineup/TacticsLineupView";
-import { lineupPayloadToTacticsBoardData, type LineupTacticPayload } from "@/lib/lineupTacticData";
 import type { TacticsBoardData } from "@/lib/tacticsPlacements";
+import { boardRecordDataToViewData } from "@/lib/tacticsBoardViewData";
 import { useT } from "@/lib/NativeLangProvider";
 import { usePostTranslation } from "@/lib/PostTranslationContext";
 import { stripDataUrlsFromText } from "@/lib/tacticsPostBody";
@@ -87,20 +87,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     };
   }, [board?.body, targetLang, sameLanguage]);
 
-  const viewData = useMemo(() => {
-    if (!board?.data) return null;
-    const raw = board.data as
-      | LineupTacticPayload
-      | { placements?: unknown[]; drawingData?: { strokes?: unknown[] } }
-      | null;
-    const hasLegacy =
-      (raw as { placements?: unknown[] })?.placements?.length ||
-      (raw as { drawingData?: { strokes?: unknown[] } })?.drawingData?.strokes?.length;
-    return (
-      lineupPayloadToTacticsBoardData(raw as LineupTacticPayload) ??
-      (hasLegacy ? (raw as Parameters<typeof TacticsLineupView>[0]["data"]) : null)
-    );
-  }, [board?.data]);
+  const viewData = useMemo(() => boardRecordDataToViewData(board?.data), [board?.data]);
 
   useEffect(() => {
     if (!viewData?.placements?.length) {
@@ -195,6 +182,25 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
           {new Date(board.createdAt).toLocaleString("ja-JP")}
         </div>
         {board.title ? <h1 className="text-lg font-bold mt-1">{board.title}</h1> : null}
+        <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center">
+          <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded px-2 py-1.5 flex-1 min-w-0">
+            {t("tactics.viewerHint")}
+          </p>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Link
+              href={`/board/${resolved.team}/thread/${resolved.threadId}/tactics-board/${resolved.id}/edit`}
+              className="inline-flex items-center justify-center px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm font-medium"
+            >
+              {t("tactics.editBoard")}
+            </Link>
+            <Link
+              href={`/board/${resolved.team}/thread/${resolved.threadId}/tactics-board/new`}
+              className="inline-flex items-center justify-center px-3 py-1.5 rounded-md border border-gray-300 text-gray-800 hover:bg-gray-50 text-sm font-medium"
+            >
+              {t("tactics.newBoard")}
+            </Link>
+          </div>
+        </div>
         {dataForView ? (
           <div className="mt-4">
             <TacticsLineupView

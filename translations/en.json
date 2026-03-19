@@ -45,7 +45,17 @@
     "noNote": "(No notes)",
     "fetchFailed": "Failed to load",
     "memoPlaceholder": "Enter notes…",
-    "save": "Save"
+    "save": "Save",
+    "drawTools": "Draw",
+    "freehand": "Pen",
+    "line": "Line",
+    "arrow": "Arrow",
+    "lineWidth": "Width",
+    "viewerHint": "View-only. Use Edit to change lineup and drawings.",
+    "editBoard": "Edit board",
+    "newBoard": "New tactics board",
+    "updateSubmit": "Save changes",
+    "backToView": "Back to view"
   },
   "thread": {
     "preMatchThread": "Pre-match",

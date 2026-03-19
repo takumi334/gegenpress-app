@@ -1,11 +1,12 @@
 "use client";
 
+import { useCallback } from "react";
 import type { FormationDef, Slot } from "@/lib/formations";
 import type { PlayerChipData } from "./PlayerChip";
 import type { DrawingStroke } from "@/lib/tacticsPlacements";
 import SoccerPitch from "./SoccerPitch";
 import DraggablePlacementMarker from "./DraggablePlacementMarker";
-import TacticsDrawingCanvas from "./TacticsDrawingCanvas";
+import TacticsDrawingCanvas, { type DrawToolKind } from "./TacticsDrawingCanvas";
 
 export type TacticsSlotAssignments = Record<string, PlayerChipData | null>;
 
@@ -24,6 +25,8 @@ type TacticsPitchBoardProps = {
   strokes?: DrawingStroke[];
   onStrokesChange?: (strokes: DrawingStroke[]) => void;
   penColor?: PenColor;
+  penLineWidth?: number;
+  drawTool?: DrawToolKind;
   penModeActive?: boolean;
   ballPosition?: BallPosition;
   onBallPositionChange?: (x: number, y: number) => void;
@@ -44,6 +47,8 @@ export default function TacticsPitchBoard({
   strokes = [],
   onStrokesChange,
   penColor = "red",
+  penLineWidth = 4,
+  drawTool = "freehand",
   penModeActive = false,
   ballPosition,
   onBallPositionChange,
@@ -98,6 +103,8 @@ export default function TacticsPitchBoard({
           strokes={strokes}
           onChange={onStrokesChange}
           penColor={penColor}
+          penLineWidth={penLineWidth}
+          drawTool={drawTool}
           enabled={penModeActive}
         />
       )}

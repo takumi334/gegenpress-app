@@ -6,6 +6,7 @@ import type { FormationId } from "@/lib/formations";
 import type { TacticsBoardData } from "@/lib/tacticsPlacements";
 import { exportTacticsToGif, downloadBlob, type GifExportFormat } from "@/lib/tacticsGif";
 import SoccerPitch from "./SoccerPitch";
+import { drawSingleStroke } from "@/lib/tacticsStrokeDraw";
 
 type TacticsLineupViewProps = {
   data: TacticsBoardData | null | undefined;
@@ -82,24 +83,8 @@ function DrawingOverlay({
     ctx.clearRect(0, 0, rect.width, rect.height);
     const w = rect.width;
     const h = rect.height;
-    const toPx = (p: { x: number; y: number }) => ({ x: (p.x / 100) * w, y: (p.y / 100) * h });
     strokes.forEach((s) => {
-      if (s.points.length < 2) return;
-      ctx.beginPath();
-      const first = toPx(s.points[0]);
-      ctx.moveTo(first.x, first.y);
-      for (let i = 1; i < s.points.length; i++) {
-        const pt = toPx(s.points[i]);
-        ctx.lineTo(pt.x, pt.y);
-      }
-      ctx.strokeStyle = s.color === "erase" ? "transparent" : s.color === "red" ? "#ef4444" : "#3b82f6";
-      ctx.lineWidth = s.color === "erase" ? 24 : 4;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      if (s.color === "erase") ctx.globalCompositeOperation = "destination-out";
-      else ctx.globalCompositeOperation = "source-over";
-      ctx.stroke();
-      ctx.globalCompositeOperation = "source-over";
+      drawSingleStroke(ctx, s, w, h);
     });
   }, [strokes]);
 

@@ -21,6 +21,10 @@ export type TacticsPlacement = {
 export type DrawingStroke = {
   color: string; // "red" | "blue" | "erase"
   points: { x: number; y: number }[];
+  /** 2点ストロークの終端に矢印（作図ツール「矢印」） */
+  arrow?: boolean;
+  /** 線幅（CSS px 相当）。省略時は 4。消しゴムは color が erase のとき太め固定 */
+  lineWidth?: number;
 };
 
 export type TacticsBoardData = {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useT } from "@/lib/NativeLangProvider";
+import type { DrawToolKind } from "./TacticsDrawingCanvas";
 
 export type BoardMode = "placement" | "pen";
 export type PenColor = "red" | "blue" | "erase";
@@ -12,6 +13,10 @@ type TacticsBoardToolbarProps = {
   onPenColorChange: (c: PenColor) => void;
   onClearAll: () => void;
   penModeActive: boolean;
+  drawTool: DrawToolKind;
+  onDrawToolChange: (t: DrawToolKind) => void;
+  penLineWidth: number;
+  onPenLineWidthChange: (w: number) => void;
 };
 
 export default function TacticsBoardToolbar({
@@ -21,6 +26,10 @@ export default function TacticsBoardToolbar({
   onPenColorChange,
   onClearAll,
   penModeActive,
+  drawTool,
+  onDrawToolChange,
+  penLineWidth,
+  onPenLineWidthChange,
 }: TacticsBoardToolbarProps) {
   const t = useT();
   return (
@@ -50,6 +59,60 @@ export default function TacticsBoardToolbar({
       </div>
       {penModeActive && (
         <>
+          <span className="text-gray-600">|</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            <span className="text-xs text-gray-400 mr-1">{t("tactics.drawTools")}:</span>
+            <button
+              type="button"
+              onClick={() => onDrawToolChange("freehand")}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                drawTool === "freehand"
+                  ? "bg-slate-500 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {t("tactics.freehand")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDrawToolChange("line")}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                drawTool === "line"
+                  ? "bg-slate-500 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {t("tactics.line")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDrawToolChange("arrow")}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                drawTool === "arrow"
+                  ? "bg-slate-500 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {t("tactics.arrow")}
+            </button>
+          </div>
+          <span className="text-gray-600">|</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400 mr-1">{t("tactics.lineWidth")}:</span>
+            {[3, 4, 6, 10].map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => onPenLineWidthChange(w)}
+                className={`min-w-[2rem] px-1.5 py-1 rounded text-xs font-medium border-2 transition-colors ${
+                  penLineWidth === w ? "border-white bg-gray-600 text-white" : "border-gray-600 bg-gray-700 text-gray-300"
+                }`}
+                title={`${w}px`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
           <span className="text-gray-600">|</span>
           <div className="flex items-center gap-1">
             <button

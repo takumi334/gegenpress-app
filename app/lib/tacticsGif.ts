@@ -5,6 +5,7 @@
 import { getFormation } from "@/lib/formations";
 import type { FormationId } from "@/lib/formations";
 import type { TacticsBoardData, DrawingStroke } from "@/lib/tacticsPlacements";
+import { drawSingleStroke } from "@/lib/tacticsStrokeDraw";
 
 const PITCH_ASPECT = 105 / 68; // height/width
 const PITCH_WIDTH_RATIO = 68 / 105; // width/height
@@ -172,22 +173,8 @@ function drawStrokes(
   h: number
 ) {
   if (!strokes.length) return;
-  const toPx = (p: { x: number; y: number }) => ({ x: (p.x / 100) * w, y: (p.y / 100) * h });
   strokes.forEach((s) => {
-    if (s.points.length < 2) return;
-    ctx.beginPath();
-    const first = toPx(s.points[0]);
-    ctx.moveTo(first.x, first.y);
-    for (let i = 1; i < s.points.length; i++) {
-      const pt = toPx(s.points[i]);
-      ctx.lineTo(pt.x, pt.y);
-    }
-    if (s.color === "erase") return;
-    ctx.strokeStyle = s.color === "red" ? "#ef4444" : "#3b82f6";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.stroke();
+    drawSingleStroke(ctx, s, w, h);
   });
 }
 
