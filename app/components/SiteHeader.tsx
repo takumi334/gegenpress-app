@@ -7,6 +7,7 @@ import GlobeTranslate from "@components/GlobeTranslate";
 // import PostTranslationSelect from "@components/PostTranslationSelect"
 import SearchBox from "@components/SearchBox";
 import { useT } from "@/lib/NativeLangProvider";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export default function SiteHeader() {
   const [mounted, setMounted] = useState(false);
@@ -33,7 +34,7 @@ export default function SiteHeader() {
                 <Link href="/leagues/FL1" className="hover:underline">FL1</Link>
                 <Link href="/lineup-builder" className="hover:underline">Lineup</Link>
                 <Link href="/lineup-builder" className="hover:underline">
-                  作戦ボード
+                  {lineupBuilderUi.tacticsBoard}
                 </Link>
               </nav>
             </div>
@@ -80,7 +81,7 @@ export default function SiteHeader() {
                 {t("header.lineup")}
               </Link>
               <Link href="/lineup-builder" className="hover:underline">
-                作戦ボード
+                {lineupBuilderUi.tacticsBoard}
               </Link>
             </nav>
           </div>

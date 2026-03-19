@@ -20,6 +20,7 @@ import PlayerChip from "./PlayerChip";
 import { useT } from "@/lib/NativeLangProvider";
 import type { TacticsPlayer } from "@/lib/tacticsPlayers";
 import { drawWatermark } from "@/lib/tacticsGif";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export type LineupBuilderData = {
   formation: FormationId;
@@ -436,7 +437,7 @@ export default function TacticsLineupBuilder({
               onClick={handleSaveCurrentFrame}
               className="px-3 py-1 text-xs rounded bg-emerald-600 text-white"
             >
-              Save Frame
+              {lineupBuilderUi.saveFrame}
             </button>
             <button
               type="button"
@@ -480,13 +481,13 @@ export default function TacticsLineupBuilder({
                 type="button"
                 className="px-3 py-1 text-xs rounded bg-gray-800 text-white border border-white/20"
               >
-                このGIFで新規スレッド作成
+                {lineupBuilderUi.gifNewThread}
               </button>
               <button
                 type="button"
                 className="px-3 py-1 text-xs rounded bg-gray-800 text-white border border-white/20"
               >
-                このGIFを返信投稿
+                {lineupBuilderUi.gifReply}
               </button>
             </div>
           </div>

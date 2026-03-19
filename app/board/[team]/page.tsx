@@ -10,6 +10,7 @@ import NewThreadForm from "@board/components/NewThreadForm";
 import BoardHeadings from "./BoardHeadings";
 import { ClubNewsTitle, OfficialVideosTitle } from "./BoardSectionTitles";
 import Link from "next/link";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export async function generateMetadata({
   params,
@@ -79,7 +80,7 @@ export default async function TeamBoardPage({
           href="/lineup-builder"
           className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
         >
-          戦術を作る（作戦ボード）
+          {lineupBuilderUi.createTacticsBoard}
         </Link>
       </section>
 

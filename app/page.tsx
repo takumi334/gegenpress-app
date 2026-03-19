@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LEAGUES } from "@lib/leagues";
 import Header from "@/components/Header";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export const metadata = {
   title: "Gegenpress | サッカー翻訳・試合予想・海外掲示板",
@@ -33,7 +34,7 @@ export default function HomePage() {
                   href="/lineup-builder"
                   className="inline-flex items-center justify-center rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/15 border border-white/20"
                 >
-                  作戦ボード
+                  {lineupBuilderUi.tacticsBoard}
                 </Link>
               </div>
             </li>

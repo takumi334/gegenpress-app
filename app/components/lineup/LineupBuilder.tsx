@@ -22,6 +22,7 @@ import SlotNamesEditor from "./SlotNamesEditor";
 import PlayerCard from "./PlayerCard";
 import type { DrawPath } from "@/lib/pitchLayout";
 import { drawWatermark } from "@/lib/tacticsGif";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 const FRAME_COUNT = 4;
 const FRAME_DELAY_MS = 800;
@@ -55,7 +56,7 @@ export default function LineupBuilder({
   initialFormation = "4-3-3",
   initialAssignments = {},
   onSave,
-  saveLabel = "保存",
+  saveLabel = lineupBuilderUi.saveDefault,
   returnTo,
 }: LineupBuilderProps) {
   const router = useRouter();
@@ -606,10 +607,12 @@ export default function LineupBuilder({
       <div className="flex flex-col lg:flex-row gap-4 w-full max-w-6xl mx-auto">
         <div className="lg:w-64 shrink-0 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">選手一覧</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              {lineupBuilderUi.playersHeading}
+            </h3>
             <div className="flex flex-col gap-2 max-h-[240px] overflow-y-auto p-1 border border-white/10 rounded-lg bg-white/5 dark:bg-white/[0.06]">
               {availablePlayers.length === 0 ? (
-                <p className="text-xs text-gray-500 p-2">全員配置済みです</p>
+                <p className="text-xs text-gray-500 p-2">{lineupBuilderUi.allPlayersPlaced}</p>
               ) : (
                 availablePlayers.map((p) => <PlayerCard key={p.id} player={p} />)
               )}
@@ -648,7 +651,7 @@ export default function LineupBuilder({
               onClick={handleSaveFrame}
               className="px-3 py-1 text-xs rounded bg-emerald-600 text-white"
             >
-              Save Frame
+              {lineupBuilderUi.saveFrame}
             </button>
             <button
               type="button"
@@ -670,7 +673,7 @@ export default function LineupBuilder({
               onClick={handleSendToBoard}
               className="px-3 py-1 text-xs rounded bg-orange-500 text-white"
             >
-              掲示板へ送る
+              {lineupBuilderUi.sendToBoard}
             </button>
             {returnTo && (
               <button
@@ -678,7 +681,7 @@ export default function LineupBuilder({
                 onClick={handleAttachToReply}
                 className="px-3 py-1 text-xs rounded bg-sky-600 text-white"
               >
-                投稿に添付して戻る
+                {lineupBuilderUi.attachAndReturn}
               </button>
             )}
           </div>
@@ -712,13 +715,13 @@ export default function LineupBuilder({
                 type="button"
                 className="px-3 py-1 text-xs rounded bg-gray-800 text-white border border-white/20"
               >
-                このGIFで新規スレッド作成
+                {lineupBuilderUi.gifNewThread}
               </button>
               <button
                 type="button"
                 className="px-3 py-1 text-xs rounded bg-gray-800 text-white border border-white/20"
               >
-                このGIFを返信投稿
+                {lineupBuilderUi.gifReply}
               </button>
             </div>
           </div>

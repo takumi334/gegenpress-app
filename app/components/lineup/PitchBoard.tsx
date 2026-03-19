@@ -12,6 +12,7 @@ import SoccerPitchSVG from "./SoccerPitchSVG";
 import DraggablePitchMarker from "./DraggablePitchMarker";
 import PitchPenLayer from "./PitchPenLayer";
 import type { PitchMode } from "./PitchModeSelector";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export type SlotAssignments = Record<string, PlayerLite | null>;
 
@@ -168,7 +169,7 @@ export default function PitchBoard({
       </div>
       {!isCursorMode && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-white/80 bg-black/30 px-2 py-1 rounded">
-          描画中
+          {lineupBuilderUi.drawingHint}
         </div>
       )}
     </div>

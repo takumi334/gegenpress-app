@@ -1,5 +1,7 @@
 "use client";
 
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
+
 export type PitchMode = "cursor" | "pen";
 
 type PitchModeSelectorProps = {
@@ -17,7 +19,9 @@ export default function PitchModeSelector({
 }: PitchModeSelectorProps) {
   return (
     <div className="flex flex-wrap gap-2 items-center">
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">モード</span>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        {lineupBuilderUi.mode}
+      </span>
       <div className="flex gap-2 flex-wrap">
         <button
           type="button"
@@ -29,7 +33,7 @@ export default function PitchModeSelector({
               : "border-gray-500 bg-gray-700 text-gray-300 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500"}
           `}
         >
-          Cursor
+          {lineupBuilderUi.cursor}
         </button>
         <button
           type="button"
@@ -41,7 +45,7 @@ export default function PitchModeSelector({
               : "border-gray-500 bg-gray-700 text-gray-300 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500"}
           `}
         >
-          Pen
+          {lineupBuilderUi.pen}
         </button>
         <button
           type="button"
@@ -49,7 +53,7 @@ export default function PitchModeSelector({
           disabled={!hasDrawings}
           className="px-4 py-2 rounded-lg text-sm font-medium border-2 border-gray-500 bg-gray-700 text-gray-300 hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500"
         >
-          Clear Pen
+          {lineupBuilderUi.clearDrawings}
         </button>
       </div>
     </div>

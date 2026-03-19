@@ -1,5 +1,6 @@
 "use client";
 
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 import type { FormationDef, Slot } from "@/lib/formations";
 import type { SlotNames } from "./PitchBoard";
 
@@ -17,7 +18,7 @@ export default function SlotNamesEditor({
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-        ポジション別 選手名
+        {lineupBuilderUi.namesByPosition}
       </h3>
       <div className="grid grid-cols-2 gap-1.5 max-h-[240px] overflow-y-auto p-1 border border-white/10 rounded-lg bg-white/5 dark:bg-white/[0.06]">
         {formation.slots.map((slot: Slot) => (
@@ -32,7 +33,7 @@ export default function SlotNamesEditor({
               type="text"
               value={slotNames[slot.code] ?? ""}
               onChange={(e) => onChange(slot.code, e.target.value)}
-              placeholder="名前"
+              placeholder={lineupBuilderUi.namePlaceholder}
               className="flex-1 min-w-0 rounded px-2 py-1 bg-white/10 border border-white/20 text-white text-xs placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-green-500"
             />
           </label>
