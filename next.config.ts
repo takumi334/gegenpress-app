@@ -4,10 +4,6 @@ const nextConfig = {
     // TypeScriptのビルドエラーがあってもビルドを通す
     ignoreBuildErrors: true,
   },
-  eslint: {
-    // ESLintのエラーがあってもビルドを通す
-    ignoreDuringBuilds: true,
-  },
 };
 
 module.exports = nextConfig;

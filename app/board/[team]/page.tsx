@@ -2,10 +2,29 @@
 import { notFound } from "next/navigation";
 
 import PredictBox from "@board/components/PredictBox";
+import type { Metadata } from "next";
 import NewsList from "./NewsList";
 import OfficialVideos from "./officialVideos";
 import { getTeamNameFromFD } from "@lib/team-resolver";
 import NewThreadForm from "@board/components/NewThreadForm";
+import BoardHeadings from "./BoardHeadings";
+import { ClubNewsTitle, OfficialVideosTitle } from "./BoardSectionTitles";
+import Link from "next/link";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { team: string } | Promise<{ team: string }>;
+}): Promise<Metadata> {
+  const { team } = await (params instanceof Promise ? params : Promise.resolve(params));
+  const teamId = team.trim();
+  if (!/^\d+$/.test(teamId)) return { title: "掲示板" };
+  const teamName = await getTeamNameFromFD(teamId).catch(() => `Team ${teamId}`);
+  const title = `${teamName} 掲示板`;
+  const description = `${teamName}の海外サッカー掲示板。海外ファンの反応や試合予想を翻訳付きでチェックできる翻訳付き掲示板です。`;
+  return { title, description };
+}
 import ThreadList from "@board/components/ThreadList";
 import { headers } from "next/headers";
 import { listThreads } from "@/lib/boardApi";
@@ -54,7 +73,16 @@ export default async function TeamBoardPage({
 
   return (
     <main className="p-6 space-y-8">
-      <h1 className="text-2xl font-bold">{teamName} 掲示板</h1>
+      <BoardHeadings teamName={teamName} />
+
+      <section className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/lineup-builder"
+          className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+        >
+          {lineupBuilderUi.createTacticsBoard}
+        </Link>
+      </section>
 
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] gap-6 items-start">
         <div className="space-y-4">
@@ -69,11 +97,11 @@ export default async function TeamBoardPage({
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-3">
-          <h2 className="text-xl font-semibold">クラブニュース</h2>
+          <ClubNewsTitle />
           <NewsList teamName={teamName} initialItems={newsItems} initialLang="ja" />
         </div>
         <div className="space-y-3">
-          <h2 className="text-xl font-semibold">公式動画</h2>
+          <OfficialVideosTitle />
           <OfficialVideos teamName={teamName} initialVideos={videoItems} />
         </div>
       </section>
@@ -83,6 +111,12 @@ export default async function TeamBoardPage({
 
 /* ===== helpers (server side) ===== */
 
+type TacticsBoardSummary = {
+  id: number;
+  data: unknown;
+  createdAt: string;
+};
+
 type ThreadItem = {
   id: string;
   title: string;
@@ -91,6 +125,7 @@ type ThreadItem = {
   authorName?: string | null;
   postCount?: number;
   threadType?: string | null;
+  tacticsBoards?: TacticsBoardSummary[];
 };
 
 async function loadThreads(teamId: string): Promise<ThreadItem[]> {
@@ -103,6 +138,13 @@ async function loadThreads(teamId: string): Promise<ThreadItem[]> {
       createdAt: r.createdAt?.toISOString?.() ?? undefined,
       postCount: r.postCount ?? 0,
       threadType: r.threadType ?? undefined,
+      tacticsBoards: r.tacticsBoards?.length
+        ? r.tacticsBoards.map((tb) => ({
+          id: tb.id,
+          data: tb.data,
+          createdAt: tb.createdAt?.toISOString?.() ?? "",
+          }))
+        : undefined,
     }));
   } catch (e) {
     console.error("listThreads failed", e);

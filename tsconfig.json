@@ -37,6 +37,9 @@
       ],
       "@board/components/*": [
         "app/board/components/*"
+      ],
+      "translations/*": [
+        "translations/*"
       ]
     },
     "outDir": "dist",

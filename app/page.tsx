@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LEAGUES } from "@lib/leagues";
 import Header from "@/components/Header";
+import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 export const metadata = {
   title: "Gegenpress | サッカー翻訳・試合予想・海外掲示板",
@@ -24,10 +25,18 @@ export default function HomePage() {
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-w-5xl">
           {LEAGUES.map((lg) => (
             <li key={lg.id}>
-              <Link href={`/leagues/${lg.id}`} className="block text-white underline">
-                <span className="block text-2xl">{lg.id}</span>
-                <span className="block text-sm opacity-80">{lg.name}</span>
-              </Link>
+              <div className="space-y-2">
+                <Link href={`/leagues/${lg.id}`} className="block text-white underline">
+                  <span className="block text-2xl">{lg.id}</span>
+                  <span className="block text-sm opacity-80">{lg.name}</span>
+                </Link>
+                <Link
+                  href="/lineup-builder"
+                  className="inline-flex items-center justify-center rounded-md bg-white/10 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/15 border border-white/20"
+                >
+                  {lineupBuilderUi.tacticsBoard}
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
