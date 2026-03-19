@@ -18,14 +18,6 @@ export default function HomePage() {
         <p className="mt-2 text-white/80" data-i18n>
           European football hub (Football-Data.org)
         </p>
-        <div className="mt-3">
-          <Link
-            href="/board"
-            className="inline-flex items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-          >
-            作戦ボードへ
-          </Link>
-        </div>
 
         <h2 className="sr-only" data-i18n>Leagues</h2>
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-w-5xl">
