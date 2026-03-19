@@ -3,6 +3,8 @@ import "./globals.css";
 import { Suspense } from "react";
 import { getInitialLocale } from "@/lib/i18n";
 import { I18nUIProvider } from "@/lib/i18n-ui";
+import { NativeLangProvider } from "@/lib/NativeLangProvider";
+import { PostTranslationProvider } from "@/lib/PostTranslationContext";
 import SiteHeader from "./components/SiteHeader";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
@@ -53,6 +55,8 @@ export default async function RootLayout({ children }) {
 
       <body className="min-h-dvh bg-black text-white antialiased">
         <I18nUIProvider initialLocale={initialLocale}>
+          <NativeLangProvider>
+          <PostTranslationProvider>
           <Suspense fallback={null}>
           <AdBreakProvider>
             <div className="border-b border-white/10">
@@ -68,6 +72,8 @@ export default async function RootLayout({ children }) {
             <GrammarHints />
           </AdBreakProvider>
             </Suspense>
+          </PostTranslationProvider>
+          </NativeLangProvider>
         </I18nUIProvider>
       </body>
     </html>

@@ -31,7 +31,11 @@ export async function POST(req: NextRequest) {
     for (const s of pending) {
       try {
         console.log("[POST /api/cron/run-scheduled] thread.create id=", s.id);
-        const threadType = s.type.toLowerCase();
+        const threadType =
+          s.type === "LINEUP" ? "PRE_MATCH"
+          : s.type === "HALFTIME" ? "LIVE_MATCH"
+          : s.type === "POSTMATCH" ? "POST_MATCH"
+          : s.type.toLowerCase();
         await withPrismaRetry("POST /api/cron/run-scheduled thread.create", () =>
           prisma.thread.create({
             data: { teamId: s.teamId, title: s.title, body: s.body, threadType },

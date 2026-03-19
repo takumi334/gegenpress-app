@@ -9,27 +9,68 @@ datasource db {
 }
 
 model Thread {
-  id         Int       @id @default(autoincrement())
-  teamId     Int
-  title      String
-  body       String    @default("")
-  threadType String?   // "lineup" | "halftime" | "postmatch" = 試合中スレ（翻訳しない）
-  createdAt  DateTime  @default(now())
-  likes      Int       @default(0)
-  deletedAt  DateTime?
-  posts      Post[]
+  id                Int                @id @default(autoincrement())
+  teamId            Int
+  matchId           Int?               // football-data.org 試合 ID（自動作成スレ用）
+  title             String
+  body              String             @default("")
+  translatedBody    String?            // 翻訳後の本文（保存時に生成）
+  threadType        String?            // PRE_MATCH | LIVE_MATCH | POST_MATCH | GENERAL（旧: lineup, halftime, postmatch, prematch はコードで正規化）
+  createdAt         DateTime          @default(now())
+  likes             Int                @default(0)
+  deletedAt         DateTime?
+  posts             Post[]
+  autoThreadJob     AutoThreadJob?
+  predictedLineups  PredictedLineup[]
+  tacticsBoards     TacticsBoard[]
 
+  @@index([matchId, threadType])
   @@map("スレッド")
 }
 
+model TacticsBoard {
+  id        Int       @id @default(autoincrement())
+  threadId  Int
+  thread    Thread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  mode      String    // PRE_MATCH | LIVE_MATCH（投稿時の文脈を保持）
+  title     String?   @default("")
+  body      String?   @default("")   // コメント・メモ
+  data      Json?     // 自由線・色・太さ等のペイロード（将来拡張）
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([threadId])
+  @@map("tactics_boards")
+}
+
+model AutoThreadJob {
+  id               Int       @id @default(autoincrement())
+  externalMatchId  Int       @unique  // football-data.org の match id
+  competitionCode  String
+  homeTeam         String
+  awayTeam         String
+  kickoffAt        DateTime
+  threadId         Int?      @unique  // FAILED の場合は null
+  thread           Thread?   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  status           String    // "CREATED" | "SKIPPED" | "FAILED"
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([externalMatchId])
+  @@index([kickoffAt])
+  @@map("auto_thread_jobs")
+}
+
 model Post {
-  id         Int       @id @default(autoincrement())
-  threadId   Int
-  author     String?
-  body       String    @default("")
-  createdAt  DateTime  @default(now())
-  thread     Thread    @relation(fields: [threadId], references: [id])
-  postLikes  PostLike[]
+  id              Int       @id @default(autoincrement())
+  threadId        Int
+  author          String?
+  body            String    @default("")
+  translatedBody  String?   // 翻訳後の本文（保存時に生成。表示の TRANSLATION 欄で使用）
+  tactic          Json?     // 作戦ボード（frames / slotNames / formation）
+  createdAt       DateTime  @default(now())
+  thread          Thread    @relation(fields: [threadId], references: [id])
+  postLikes       PostLike[]
 
   @@index([threadId, createdAt])
   @@map("投稿")
@@ -74,4 +115,81 @@ model ScheduledPost {
   @@index([postedAt])
   @@unique([teamId, fixtureId, type])
   @@map("scheduled_posts")
+}
+
+// スタメン予想ビルダー用（将来的に試合スレ・API 連携を想定）
+model Player {
+  id                Int                    @id @default(autoincrement())
+  name              String
+  positionCategory  String                 // GK | DF | MF | FW
+  teamName          String?
+  shirtNumber       Int?
+  lineupPlayers     PredictedLineupPlayer[]
+
+  @@index([positionCategory])
+  @@map("players")
+}
+
+model PredictedLineup {
+  id        Int                     @id @default(autoincrement())
+  userId    Int?                    // 将来のユーザー認証用
+  threadId  Int?                    // 紐づくスレッド（null = 単体で保存）
+  thread    Thread?                 @relation(fields: [threadId], references: [id], onDelete: SetNull)
+  formation String                  // 例: "4-3-3", "4-4-2", "3-5-2"
+  title     String?
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  players   PredictedLineupPlayer[]
+
+  @@index([threadId])
+  @@map("predicted_lineups")
+}
+
+model PredictedLineupPlayer {
+  id             Int             @id @default(autoincrement())
+  lineupId       Int
+  lineup         PredictedLineup @relation(fields: [lineupId], references: [id], onDelete: Cascade)
+  playerId       Int
+  player         Player          @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  positionCode   String          // GK, LB, CB1, CB2, RB, CM1, ...
+  sortOrder      Int             @default(0)
+  createdAt      DateTime        @default(now())
+
+  @@unique([lineupId, playerId])
+  @@unique([lineupId, positionCode])
+  @@index([lineupId])
+  @@map("predicted_lineup_players")
+}
+
+// DB に既存のテーブル（schema に無いと db push で削除対象になるため定義）
+model LyricLine {
+  id        Int      @id @default(autoincrement())
+  videoId   Int
+  index     Int
+  text      String
+  startSec  Float?
+  endSec    Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  Video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, index])
+  @@index([videoId])
+}
+
+model Video {
+  id           Int         @id @default(autoincrement())
+  originalName String
+  url          String
+  size         Int
+  mime         String
+  createdAt    DateTime    @default(now())
+  LyricLine    LyricLine[]
+}
+
+model VideoSubmission {
+  id           Int      @id @default(autoincrement())
+  originalPath String
+  status       String   @default("pending")
+  createdAt    DateTime @default(now())
 }

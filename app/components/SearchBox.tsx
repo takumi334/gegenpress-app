@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/lib/NativeLangProvider";
 
 export default function SearchBox({ className = "" }: { className?: string }) {
+  const t = useT();
   const [q, setQ] = useState("");
   const router = useRouter();
 
@@ -20,7 +22,7 @@ export default function SearchBox({ className = "" }: { className?: string }) {
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Search players / clubs / threads…"
+        placeholder={t("header.searchPlaceholder")}
         className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 outline-none focus:border-white/40"
         aria-label="Search"
       />

@@ -1,6 +1,7 @@
 // app/components/NextMatchWidget.tsx
 "use client";
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/NativeLangProvider";
 
 type Match = {
   utcDate: string;
@@ -11,6 +12,7 @@ type Match = {
 };
 
 export default function NextMatchWidget({ teamId }: { teamId: number }) {
+  const t = useT();
   const [match, setMatch] = useState<Match | null>(null);
   const [pred, setPred] = useState<{ exp: { home: number; away: number }, top: {score:string;p:number}[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,28 +51,28 @@ const normalized =
     return () => { mounted = false; };
   }, [teamId]);
 
-  if (loading) return <div className="border p-3 rounded">Loading next match…</div>;
-  if (!match) return <div className="border p-3 rounded">No upcoming match.</div>;
+  if (loading) return <div className="border p-3 rounded">{t("common.loading")}</div>;
+  if (!match) return <div className="border p-3 rounded">{t("predict.noUpcoming")}</div>;
 
   const dt = match?.utcDate ? new Date(match.utcDate) : null;
-  const date = dt ? dt.toLocaleString() : "試合日時未設定";
+  const date = dt ? dt.toLocaleString() : t("predict.kickoffTba");
 
   return (
     <div className="border p-3 rounded space-y-2">
-      <div className="text-sm opacity-70">{match?.competition?.name || "Next match"}</div>
+      <div className="text-sm opacity-70">{match?.competition?.name || t("predict.nextMatch")}</div>
       <div className="font-semibold">{match?.homeTeam?.name ?? "—"} vs {match?.awayTeam?.name ?? "—"}</div>
       <div className="text-sm">{date}</div>
 
       {pred && (() => {
-        const topScorelines = Array.isArray(pred?.top) ? pred.top.filter((t) => t?.score != null) : [];
+        const topScorelines = Array.isArray(pred?.top) ? pred.top.filter((x) => x?.score != null) : [];
         const exp = pred?.exp;
         return (
         <div className="mt-2">
-          <div className="text-sm opacity-70">Expected goals (xG-like, simple)</div>
+          <div className="text-sm opacity-70">{t("predict.expectedGoals")}</div>
           <div className="text-black dark:text-white">{match?.homeTeam?.name ?? "—"}: {exp?.home != null ? exp.home.toFixed(2) : "—"} / {match?.awayTeam?.name ?? "—"}: {exp?.away != null ? exp.away.toFixed(2) : "—"}</div>
           {topScorelines.length > 0 && (
             <>
-              <div className="text-sm opacity-70 mt-2">Top scorelines</div>
+              <div className="text-sm opacity-70 mt-2">{t("predict.topScorelines")}</div>
               <div className="flex flex-wrap gap-2 mt-1">
                 {topScorelines.map((t, i) => {
                   const label = `${t.score} (${((t.p ?? 0) * 100).toFixed(1)}%)`;

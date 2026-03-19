@@ -5,18 +5,18 @@ export const runtime = "nodejs";
 
 export async function POST(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ threadId: string }> }
 ) {
-  const { id } = await context.params;
-  const threadId = Number(id);
+  const { threadId: threadIdParam } = await context.params;
+  const threadId = Number(threadIdParam);
 
   if (!Number.isInteger(threadId)) {
-    return NextResponse.json({ error: "invalid id" }, { status: 400 });
+    return NextResponse.json({ error: "invalid threadId" }, { status: 400 });
   }
 
   try {
-    console.log("[POST /api/threads/[id]/likes] thread.update id=", threadId);
-    const updated = await withPrismaRetry("POST /api/threads/[id]/likes thread.update", () => prisma.thread.update({
+    console.log("[POST /api/threads/[threadId]/likes] thread.update threadId=", threadId);
+    const updated = await withPrismaRetry("POST /api/threads/[threadId]/likes thread.update", () => prisma.thread.update({
       where: { id: threadId },
       data: {
         likes: { increment: 1 },
@@ -30,4 +30,3 @@ export async function POST(
     return NextResponse.json({ error: "thread not found" }, { status: 404 });
   }
 }
-
