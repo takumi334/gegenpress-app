@@ -47,6 +47,9 @@ const TACTICS_BOARD_CREATE_TYPES: ThreadType[] = [THREAD_TYPE.PRE_MATCH, THREAD_
  * このスレッド種別で戦術ボードを新規投稿できるか
  */
 export function canCreateTacticsBoard(threadType: string | null | undefined): boolean {
+  // threadType が未設定（null / undefined）の初期状態でも導線を消さない
+  // （ただし値が存在する場合は従来どおり作成可能タイプのみ許可）
+  if (threadType == null || String(threadType).trim() === "") return true;
   return TACTICS_BOARD_CREATE_TYPES.includes(normalizeThreadType(threadType));
 }
 
