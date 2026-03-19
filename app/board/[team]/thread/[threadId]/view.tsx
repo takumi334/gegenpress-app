@@ -9,6 +9,7 @@ import CommentLikeButton from "@/board/components/CommentLikeButton";
 import { getOrCreateAnonId } from "@/lib/anonId";
 import { canCreateTacticsBoard, normalizeThreadType, THREAD_TYPE } from "@/lib/threadType";
 import TacticsLineupThumbnail from "@components/lineup/TacticsLineupThumbnail";
+import TacticsLineupView from "@components/lineup/TacticsLineupView";
 import { PostBodyNativeOnly, PostBodyTranslationOnly } from "@/board/components/PostBodyRenderer";
 import { lineupPayloadToTacticsBoardData, type LineupTacticPayload } from "@/lib/lineupTacticData";
 import { stripDataUrlsFromText } from "@/lib/tacticsPostBody";
@@ -338,7 +339,7 @@ export default function ThreadView({
                     const viewData = lineupPayloadToTacticsBoardData(p.tactic as LineupTacticPayload);
                     return viewData ? (
                       <div className="mt-2">
-                        <TacticsLineupThumbnail data={viewData} />
+                        <TacticsLineupView data={viewData} />
                       </div>
                     ) : null;
                   })()}
