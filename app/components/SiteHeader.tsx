@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import GlobeTranslate from "@components/GlobeTranslate";
-import PostTranslationSelect from "@components/PostTranslationSelect";
+// 一旦コメントアウト
+// import PostTranslationSelect from "@components/PostTranslationSelect"
 import SearchBox from "@components/SearchBox";
 import { useT } from "@/lib/NativeLangProvider";
 
@@ -84,7 +85,8 @@ export default function SiteHeader() {
             </nav>
           </div>
           <div className="shrink-0 flex flex-wrap items-center gap-3">
-            <PostTranslationSelect />
+            {/* 一旦コメントアウト（import も無効化中） */}
+            {/* <PostTranslationSelect /> */}
             <GlobeTranslate />
           </div>
         </div>
