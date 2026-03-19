@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import GlobeTranslate from "@components/GlobeTranslate";
-// 一旦コメントアウト
-// import PostTranslationSelect from "@components/PostTranslationSelect"
+import PostTranslationSelect from "@components/PostTranslationSelect";
 import SearchBox from "@components/SearchBox";
 import { useT } from "@/lib/NativeLangProvider";
 import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
@@ -38,8 +37,8 @@ export default function SiteHeader() {
                 </Link>
               </nav>
             </div>
-            <div className="shrink-0">
-              <div className="min-w-[120px] h-8" aria-hidden />
+            <div className="shrink-0 flex flex-wrap items-center gap-3">
+              <div className="min-w-[220px] h-8" aria-hidden />
             </div>
           </div>
           <div className="w-full">
@@ -86,8 +85,7 @@ export default function SiteHeader() {
             </nav>
           </div>
           <div className="shrink-0 flex flex-wrap items-center gap-3">
-            {/* 一旦コメントアウト（import も無効化中） */}
-            {/* <PostTranslationSelect /> */}
+            <PostTranslationSelect />
             <GlobeTranslate />
           </div>
         </div>
