@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/NativeLangProvider";
 
 type PredictResp = {
   fixture?: {
@@ -27,6 +28,7 @@ export default function PredictBox({
   teamId: string;
   initialData?: PredictResp | null;
 }) {
+  const t = useT();
   const [data, setData] = useState<PredictResp | null>(
     initialData && !initialData.error ? initialData : null,
   );
@@ -58,15 +60,15 @@ export default function PredictBox({
 
   if (err) return (
     <section className="border rounded p-3 mt-6">
-      <h3 className="text-lg font-semibold mb-2">Next fixture &amp; Prediction</h3>
-      <div className="text-red-600">Error: {err}</div>
+      <h3 className="text-lg font-semibold mb-2">{t("predict.nextFixturePrediction")}</h3>
+      <div className="text-red-600">{t("common.error")}: {err}</div>
     </section>
   );
 
   if (!data) return (
     <section className="border rounded p-3 mt-6">
-      <h3 className="text-lg font-semibold mb-2">Next fixture &amp; Prediction</h3>
-      <div className="opacity-70">Loading…</div>
+      <h3 className="text-lg font-semibold mb-2">{t("predict.nextFixturePrediction")}</h3>
+      <div className="opacity-70">{t("common.loading")}</div>
     </section>
   );
 
@@ -77,7 +79,7 @@ export default function PredictBox({
   if (data.message) {
     return (
       <section className="border rounded p-3 mt-6">
-        <h3 className="text-lg font-semibold mb-2">Next fixture &amp; Prediction</h3>
+        <h3 className="text-lg font-semibold mb-2">{t("predict.nextFixturePrediction")}</h3>
         <div className="opacity-80">{data.message}</div>
       </section>
     );
@@ -90,8 +92,8 @@ export default function PredictBox({
     }
     return (
       <section className="border rounded p-3 mt-6">
-        <h3 className="text-lg font-semibold mb-2">Next fixture &amp; Prediction</h3>
-        <div className="opacity-80">データが見つかりません。試合が未設定の可能性があります。</div>
+        <h3 className="text-lg font-semibold mb-2">{t("predict.nextFixturePrediction")}</h3>
+        <div className="opacity-80">{t("predict.noData")}</div>
       </section>
     );
   }
@@ -114,7 +116,7 @@ export default function PredictBox({
 
   return (
     <section className="border rounded p-3 mt-6">
-      <h3 className="text-lg font-semibold mb-3">Next fixture &amp; Prediction</h3>
+      <h3 className="text-lg font-semibold mb-3">{t("predict.nextFixturePrediction")}</h3>
 
       <div className="text-sm leading-6">
         <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">
@@ -131,14 +133,14 @@ export default function PredictBox({
         {(kickoffStr || f?.venue) && (
           <div className="opacity-80 mt-0.5">
             {f?.venue ? `${f.venue} ・ ` : ""}
-            {kickoffStr ? `Kickoff: ${kickoffStr}` : "試合日時未設定"}
+            {kickoffStr ? `${t("predict.kickoff")}: ${kickoffStr}` : t("predict.kickoffTba")}
           </div>
         )}
       </div>
 
       <div className="mt-3 text-sm">
         <div>
-          <span className="font-medium">Win/Draw odds:</span>{" "}
+          <span className="font-medium">{t("predict.winDrawOdds")}:</span>{" "}
           H {pct(data.winProb?.home)} / D {pct(data.winProb?.draw)} / A {pct(data.winProb?.away)}
         </div>
         <div>
@@ -149,10 +151,9 @@ export default function PredictBox({
 
       {Array.isArray(data.topScores) && data.topScores.length > 0 && (() => {
         const topScorelines = data.topScores.slice(0, 5);
-        console.log("topScorelines:", topScorelines);
         return (
         <div className="mt-3">
-          <div className="text-sm font-medium mb-1">Top scorelines</div>
+          <div className="text-sm font-medium mb-1">{t("predict.topScorelines")}</div>
           <div className="flex flex-wrap gap-2">
             {topScorelines.map((s, i) => {
               const label =

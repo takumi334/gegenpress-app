@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/NativeLangProvider";
 
 type Props = {
   threadId: number;
@@ -15,6 +16,7 @@ type Reply = {
 };
 
 export default function ReplyForm({ threadId }: Props) {
+  const t = useT();
   const [author, setAuthor] = useState("");
   const [body, setBody] = useState("");
   const [replies, setReplies] = useState<Reply[]>([]);
@@ -91,13 +93,13 @@ if (!res.ok || !data) {
         <input
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
-          placeholder="名前（任意）"
+          placeholder={t("thread.displayNamePlaceholder")}
           className="w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-xs"
         />
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Share your thoughts..."
+          placeholder={t("thread.sharePlaceholder")}
           className="w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-xs"
           rows={2}
         />
@@ -106,16 +108,16 @@ if (!res.ok || !data) {
           disabled={sending || !body.trim()}
           className="rounded bg-white/10 px-3 py-1 text-xs hover:bg-white/20 disabled:opacity-40"
         >
-          Post reply
+          {sending ? t("thread.posting") : t("thread.postReply")}
         </button>
       </form>
 
       {/* 返信一覧 */}
       <div className="mt-1 space-y-1">
         {loading ? (
-          <p className="text-xs text-white/60">読み込み中…</p>
+          <p className="text-xs text-white/60">{t("common.loading")}</p>
         ) : replies.length === 0 ? (
-          <p className="text-xs text-white/60">まだ返信はありません。</p>
+          <p className="text-xs text-white/60">{t("board.noReplies")}</p>
         ) : (
           replies.map((r) => (
             <div

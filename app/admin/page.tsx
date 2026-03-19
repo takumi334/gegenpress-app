@@ -114,7 +114,7 @@ export default function AdminPage() {
       }
 
       if (r.kind === "thread") {
-        // 後で DELETE /api/threads/:id を作ったらここに追加
+        // 後で DELETE /api/threads/[threadId] を作ったらここに追加
         throw new Error("thread削除APIが未実装です");
       }
 

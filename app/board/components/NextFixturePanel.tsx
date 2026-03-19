@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/NativeLangProvider";
 
 type Props = { teamId: string }; // ← 呼び出し側と合わせて string
 
@@ -11,6 +12,7 @@ type Fixture = {
 };
 
 export default function NextFixturePanel({ teamId }: Props) {
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [fx, setFx] = useState<Fixture | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -44,15 +46,15 @@ export default function NextFixturePanel({ teamId }: Props) {
     };
   }, [teamId]);
 
-  if (loading) return <div className="text-sm text-gray-500">Loading next fixture…</div>;
-  if (err) return <div className="text-sm text-red-600">Error: {err}</div>;
-  if (!fx) return <div className="text-sm text-gray-500">No upcoming fixtures.</div>;
+  if (loading) return <div className="text-sm text-gray-500">{t("predict.loadingNextFixture")}</div>;
+  if (err) return <div className="text-sm text-red-600">{t("common.error")}: {err}</div>;
+  if (!fx) return <div className="text-sm text-gray-500">{t("predict.noUpcoming")}</div>;
 
   const dt = new Date(fx.utc);
 
   return (
     <div className="space-y-1 text-sm">
-      <div className="font-medium">Next fixture</div>
+      <div className="font-medium">{t("predict.nextFixture")}</div>
       <div>Team ID: {teamId}</div>
       <div>Opponent: {fx.opponent ?? "-"}</div>
       <div>Venue: {fx.venue ?? "-"}</div>

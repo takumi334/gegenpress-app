@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-match-threads",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

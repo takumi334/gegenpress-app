@@ -7,6 +7,8 @@ import type { TacticsBoardData } from "@/lib/tacticsPlacements";
 import { exportTacticsToGif, downloadBlob, type GifExportFormat } from "@/lib/tacticsGif";
 import SoccerPitch from "./SoccerPitch";
 import { drawSingleStroke } from "@/lib/tacticsStrokeDraw";
+import { buildXPostShareText } from "@/lib/xPostShareText";
+import type { BuildHashtagsInput } from "@/lib/xPostHashtags";
 
 type TacticsLineupViewProps = {
   data: TacticsBoardData | null | undefined;
@@ -34,6 +36,10 @@ type TacticsLineupViewProps = {
    * コピー用: 戦術投稿のパス（例: /board/57/thread/17/tactics-board/7）。X投稿用の絶対URLに使う。
    */
   copyTargetPath?: string;
+  /** X投稿ハッシュタグ用（例: FD のクラブ名）。英字でないとタグ化されない */
+  xPostTeamDisplayName?: string | null;
+  /** X投稿ハッシュタグ用リーグ名。省略時は親で推定しない */
+  xPostLeagueName?: string | null;
 };
 
 function placementsBySlot(
@@ -114,20 +120,20 @@ export default function TacticsLineupView({
   copyNativeBody,
   copyTranslatedBody,
   copyTargetPath,
+  xPostTeamDisplayName,
+  xPostLeagueName,
 }: TacticsLineupViewProps) {
   const [isExportingGif, setIsExportingGif] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [showGifActions, setShowGifActions] = useState(false);
 
-  const FIXED_HASHTAGS = ["#football", "#soccer", "#tactics", "#gegenpress"];
-
-  // 日本語など英数字以外はタグ化できないので省略する方針（指定どおり記号除去 + 小文字化）
-  function toHashTag(raw: string): string | null {
-    const s = (raw ?? "").toLowerCase();
-    const normalized = s.replace(/\s+/g, "").replace(/[^a-z0-9]/g, "");
-    if (!normalized) return null;
-    return `#${normalized}`;
-  }
+  const xPostHashtagContext: BuildHashtagsInput = useMemo(
+    () => ({
+      teamNames: xPostTeamDisplayName ? [xPostTeamDisplayName] : [],
+      leagueName: xPostLeagueName ?? undefined,
+    }),
+    [xPostTeamDisplayName, xPostLeagueName]
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -141,21 +147,13 @@ export default function TacticsLineupView({
 
   const xPostText = useMemo(() => {
     if (!copyTargetPath) return "";
-    const url = getAbsoluteUrl(copyTargetPath);
-
-    // 現状、この画面からホーム/アウェイのチーム名が取得できないため、固定タグのみを追加。
-    // 将来 `homeTeamName` / `awayTeamName` を props で受け取れるようになったら、ここで toHashTag() を適用する。
-    const hashtags = FIXED_HASHTAGS.join(" ");
-
-    const sections: string[] = [];
-    if (translatedText) sections.push(translatedText);
-    if (nativeText) sections.push(nativeText);
-    // ハッシュタグは日本語直後に追加（空行区切り）
-    sections.push(hashtags);
-    // URLは最後（空行区切り）
-    sections.push(url);
-    return sections.join("\n\n");
-  }, [copyTargetPath, translatedText, nativeText]);
+    return buildXPostShareText({
+      translatedText,
+      nativeText,
+      url: getAbsoluteUrl(copyTargetPath),
+      hashtagContext: xPostHashtagContext,
+    });
+  }, [copyTargetPath, translatedText, nativeText, xPostHashtagContext]);
 
   const copyToClipboard = useCallback(async (text: string, successMessage: string) => {
     try {

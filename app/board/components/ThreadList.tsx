@@ -2,29 +2,36 @@
 
 import { useEffect, useState } from "react";
 import ReportButton from "@/components/ReportButton";
+import { useT } from "@/lib/NativeLangProvider";
+import { usePostTranslation } from "@/lib/PostTranslationContext";
 import Link from "next/link";
-
-/** テキストが日本語主体なら "en"（英語へ翻訳）、それ以外は "ja"（日本語へ翻訳） */
-function detectTargetLang(text: string): "en" | "ja" {
-  if (!text.trim()) return "ja";
-  const hasJapanese = /[\u3040-\u309f\u30a0-\u30ff\u4e00-\u9faf]/.test(text);
-  return hasJapanese ? "en" : "ja";
-}
-
-const NATIVE_ONLY_TYPES = ["lineup", "halftime", "postmatch"];
+import { normalizeThreadType, THREAD_TYPE } from "@/lib/threadType";
+import TacticsLineupThumbnail from "@components/lineup/TacticsLineupThumbnail";
+import { lineupPayloadToTacticsBoardData, type LineupTacticPayload } from "@/lib/lineupTacticData";
 
 function isNativeOnlyThread(threadType?: string | null): boolean {
-  return !!threadType && NATIVE_ONLY_TYPES.includes(threadType.toLowerCase());
+  if (!threadType) return false;
+  const t = normalizeThreadType(threadType);
+  return t === THREAD_TYPE.PRE_MATCH || t === THREAD_TYPE.LIVE_MATCH || t === THREAD_TYPE.POST_MATCH;
 }
+
+type TacticsBoardSummary = {
+  id: number;
+  data: unknown;
+  createdAt: string;
+};
 
 type Item = {
   id: string;
   title: string;
   body?: string;
+  /** DB保存済みの翻訳本文。APIで返る。優先して TRANSLATION 欄に表示 */
+  translatedBody?: string | null;
   authorName?: string | null;
   createdAt?: string;
   postCount?: number;
   threadType?: string | null;
+  tacticsBoards?: TacticsBoardSummary[];
   title_t?: string;
   body_t?: string;
 };
@@ -32,6 +39,8 @@ type Item = {
 type Props = { teamId: string; initialItems?: Item[] };
 
 export default function ThreadList({ teamId, initialItems }: Props) {
+  const t = useT();
+  const { targetLang, sameLanguage } = usePostTranslation();
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<Item[]>(initialItems ?? []);
   const [rawItems, setRawItems] = useState<Item[]>(initialItems ?? []);
@@ -76,7 +85,7 @@ export default function ThreadList({ teamId, initialItems }: Props) {
 
         if (alive) {
           setRawItems(list);
-          setItems(list); // 即時表示（翻訳は別エフェクトで上書き）
+          setItems(list);
         }
       } catch (e: any) {
         if (alive) setErr(e?.message || "load failed");
@@ -89,148 +98,209 @@ export default function ThreadList({ teamId, initialItems }: Props) {
     };
   }, [teamId, initialItems]);
 
-  // 投稿言語を自動判定し、日本語→英語・英語→日本語で /api/translate を呼び翻訳結果を Translation に表示
-  // threadType が lineup / halftime / postmatch のスレは翻訳しない（ネイティブのみ）
+  // 翻訳取得（ヘッダーの Native/Target に従う）。全スレッドを翻訳し、TRANSLATION欄は翻訳結果のみ表示する。
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!rawItems.length) return;
 
-      const translatableItems = rawItems.filter((i) => !isNativeOnlyThread(i.threadType));
-      if (translatableItems.length === 0) {
-        setItems(rawItems);
+      if (sameLanguage) {
+        const withSame = rawItems.map((i) => ({
+          ...i,
+          title_t: i.title,
+          body_t: i.body,
+        }));
+        if (!cancelled) setItems(withSame);
         return;
       }
 
-      type Target = "en" | "ja";
-      const textsByTarget = new Map<Target, Set<string>>();
-      textsByTarget.set("en", new Set());
-      textsByTarget.set("ja", new Set());
-      translatableItems.forEach((i) => {
+      if (rawItems[0]) {
+        console.log("[ThreadList] 取得直後（APIで translatedBody を返す）", {
+          "先頭 item.body": rawItems[0].body,
+          "先頭 item.translatedBody": rawItems[0].translatedBody,
+          "先頭 item.title": rawItems[0].title,
+          "先頭 item.threadType": rawItems[0].threadType,
+        });
+      }
+
+      const uniqueTexts = new Set<string>();
+      rawItems.forEach((i) => {
         const title = (i.title || "").trim();
         const body = (i.body || "").trim();
-        const target = detectTargetLang(title + " " + body);
-        if (title) textsByTarget.get(target)!.add(title);
-        if (body) textsByTarget.get(target)!.add(body);
+        if (title) uniqueTexts.add(title);
+        if (body) uniqueTexts.add(body);
       });
+      const list = Array.from(uniqueTexts);
+      const map = new Map<string, string>();
 
-      const listEn = Array.from(textsByTarget.get("en")!);
-      const listJa = Array.from(textsByTarget.get("ja")!);
-      const map = new Map<string, string>(); // "text::en" -> translated, "text::ja" -> translated
-
-      const fetchTranslations = async (q: string[], target: Target) => {
-        if (q.length === 0) return;
-        const res = await fetch("/api/translate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-          body: JSON.stringify({ q, target }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json().catch(() => ({}));
-        const trs: string[] = Array.isArray(data?.translations) ? data.translations : [];
-        q.forEach((txt, idx) => map.set(`${txt}::${target}`, trs[idx] ?? txt));
-      };
-
-      try {
-        await fetchTranslations(listEn, "en");
-        await fetchTranslations(listJa, "ja");
-        if (cancelled) return;
-
-        const translated = rawItems.map((i) => {
-          if (isNativeOnlyThread(i.threadType)) {
-            return { ...i, title_t: i.title, body_t: i.body };
+      if (list.length > 0) {
+        try {
+          const res = await fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+            body: JSON.stringify({ q: list, target: targetLang }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            console.warn("[ThreadList] translate API not ok", res.status, data);
+            if (!cancelled) setItems(rawItems);
+            return;
           }
-          const titleSrc = (i.title || "").trim();
-          const bodySrc = (i.body || "").trim();
-          const target = detectTargetLang(titleSrc + " " + bodySrc);
-          const title_t = titleSrc ? (map.get(`${titleSrc}::${target}`) ?? i.title) : i.title;
-          const body_t = bodySrc ? (map.get(`${bodySrc}::${target}`) ?? i.body) : i.body;
-          return { ...i, title_t, body_t };
-        });
-        setItems(translated);
-      } catch {
-        if (!cancelled) setItems(rawItems);
+          const trs: string[] = Array.isArray(data?.translations) ? data.translations : [];
+          list.forEach((txt, idx) => map.set(txt, (trs[idx] ?? "").trim()));
+          if (rawItems[0] && list.length > 0) {
+            const first = rawItems[0];
+            const nativeBody = (first.body ?? "").trim();
+            const nativeTitle = (first.title ?? "").trim();
+            console.log("[ThreadList] 表示直前デバッグ（先頭スレッド）", {
+              "item.body": first.body,
+              "item.body_t(翻訳後)": nativeBody ? map.get(nativeBody) : undefined,
+              "item.title": first.title,
+              "item.title_t(翻訳後)": nativeTitle ? map.get(nativeTitle) : undefined,
+              "翻訳API 生レスポンス translations 件数": trs.length,
+              "翻訳API 先頭2件": trs.slice(0, 2),
+            });
+          }
+        } catch (e) {
+          console.warn("[ThreadList] translate failed", e);
+          if (!cancelled) setItems(rawItems);
+          return;
+        }
       }
-    })();
 
+      if (cancelled) return;
+      const translated = rawItems.map((i) => {
+        const titleSrc = (i.title || "").trim();
+        const bodySrc = (i.body || "").trim();
+        const title_t = titleSrc ? (map.get(titleSrc) ?? "") : "";
+        const dbTranslatedBody = (i.translatedBody ?? "").trim();
+        const body_t = dbTranslatedBody || (bodySrc ? (map.get(bodySrc) ?? "") : "");
+        return { ...i, title_t, body_t };
+      });
+      setItems(translated);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [rawItems]);
-
-  if (loading && !rawItems.length) return <div className="text-sm text-gray-600">読み込み中…</div>;
-  if (err) return <div className="text-red-600">Error: {err}</div>;
-  if (!items.length) return <div className="text-sm text-gray-600">まだ投稿がありません。</div>;
+  }, [rawItems, targetLang, sameLanguage]);
+  if (loading && !rawItems.length) return <div className="text-sm text-gray-600">{t("common.loading")}</div>;
+  if (err) return <div className="text-red-600">{t("common.error")}: {err}</div>;
+  if (!items.length) return <div className="text-sm text-gray-600">{t("board.noPosts")}</div>;
 
   return (
-    <div className="border rounded divide-y">
-     {items.map((t) => {
-  const created = t.createdAt ? new Date(t.createdAt) : null;
-  const createdText =
-    mounted && created
-      ? new Intl.DateTimeFormat("ja-JP", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }).format(created)
-      : "";
-  const nativeOnly = isNativeOnlyThread(t.threadType);
-  return (
-  <div key={t.id} className="p-2">
-    <div className="flex items-start justify-between gap-2">
-      <div className="font-semibold">
-        {t.title_t ?? t.title}
-      </div>
-      <div className="flex items-center gap-2">
-        <Link
-          href={`/board/${teamId}/thread/${t.id}`}
-          className="text-xs border rounded px-2 py-1 hover:bg-white/10"
-        >
-          Reply
-          {typeof t.postCount === "number" ? ` (${t.postCount})` : ""}
-        </Link>
-        <ReportButton kind="thread" targetId={Number(t.id)} />
-      </div>
-    </div>
-
-    {nativeOnly ? (
-      <div className="mt-2 text-sm whitespace-pre-wrap text-slate-900 dark:text-slate-100">
-        {t.body ? <div className="mt-1">{t.body}</div> : null}
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-        <div>
-          <div className="text-[11px] text-gray-500">Original</div>
-          <div className="font-semibold whitespace-pre-wrap">{t.title}</div>
-          {t.body ? (
-            <div className="text-xs text-gray-500 whitespace-pre-wrap mt-1">{t.body}</div>
-          ) : null}
-        </div>
-        <div>
-          <div className="text-[11px] text-gray-500">Translation</div>
-          <div className="font-semibold whitespace-pre-wrap">{t.title_t ?? t.title}</div>
-          {(t.body_t ?? t.body) ? (
-            <div className="text-xs text-gray-500 whitespace-pre-wrap mt-1">
-              {t.body_t ?? t.body}
+    <div className="border border-white/10 rounded divide-y divide-white/10 bg-white/[0.02]">
+      {items.map((item) => {
+        const created = item.createdAt ? new Date(item.createdAt) : null;
+        const createdText =
+          mounted && created
+            ? new Intl.DateTimeFormat("ja-JP", {
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              }).format(created)
+            : "";
+        const noTranslation = sameLanguage;
+        return (
+          <div key={item.id} className="p-3 sm:p-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0 flex-1" />
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/board/${teamId}/thread/${item.id}`}
+                  className="text-xs border border-white/20 rounded px-2 py-1.5 hover:bg-white/10 text-white"
+                >
+                  {t("board.reply")}
+                  {typeof item.postCount === "number" ? ` (${item.postCount})` : ""}
+                </Link>
+                <ReportButton kind="thread" targetId={Number(item.id)} />
+              </div>
             </div>
-          ) : null}
-        </div>
-      </div>
-    )}
 
-    <div className="text-xs text-gray-500 mt-1">
-      {t.authorName || "Anonymous"}
-      {createdText && <> ・ {createdText}</>}
-      {typeof t.postCount === "number" ? ` ・ ${t.postCount}件の返信` : ""}
-    </div>
-  </div>
-  );
-})}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="border border-white/10 rounded p-2.5 bg-white/[0.03] min-h-[60px]">
+                <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">
+                  {t("board.native")}
+                </div>
+                <div className="font-semibold text-sm text-white/95 whitespace-pre-wrap break-words">
+                  {item.title ?? ""}
+                </div>
+                {item.body ? (
+                  <div className="text-xs text-white/70 whitespace-pre-wrap mt-1.5 break-words">
+                    {item.body}
+                  </div>
+                ) : null}
+              </div>
+              <div className="border border-white/10 rounded p-2.5 bg-white/[0.03] min-h-[60px]">
+                <div className="text-[11px] uppercase tracking-wider text-white/50 mb-1">
+                  {t("board.translation")}
+                </div>
+                {noTranslation ? (
+                  <div className="text-xs text-white/50 italic">翻訳不要</div>
+                ) : (
+                  <>
+                    {(() => {
+                      const nativeTitle = item.title ?? "";
+                      const nativeBody = item.body ?? "";
+                      const translationTitle = (item.title_t ?? "").trim();
+                      const translationBody = (item.body_t ?? "").trim();
+                      const displayTitle = translationTitle || "(translation unavailable)";
+                      const displayBody = translationBody || (nativeBody ? "(translation unavailable)" : "");
+                      return (
+                        <>
+                          <div className="font-semibold text-sm text-white/95 whitespace-pre-wrap break-words">
+                            {displayTitle}
+                          </div>
+                          {displayBody ? (
+                            <div className="text-xs text-white/70 whitespace-pre-wrap mt-1.5 break-words">
+                              {displayBody}
+                            </div>
+                          ) : null}
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+            </div>
 
+            {item.tacticsBoards && item.tacticsBoards.length > 0 && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {item.tacticsBoards.slice(0, 3).map((tb) => {
+                  const viewData = lineupPayloadToTacticsBoardData(tb.data as LineupTacticPayload);
+                  return viewData ? (
+                    <Link
+                      key={tb.id}
+                      href={`/board/${teamId}/thread/${item.id}/tactics-board/${tb.id}`}
+                      className="inline-flex items-center gap-1"
+                    >
+                      <TacticsLineupThumbnail data={viewData} />
+                    </Link>
+                  ) : null;
+                })}
+                {item.tacticsBoards.length > 3 && (
+                  <Link
+                    href={`/board/${teamId}/thread/${item.id}`}
+                    className="text-xs text-white/60 underline"
+                  >
+                    +{item.tacticsBoards.length - 3}
+                  </Link>
+                )}
+              </div>
+            )}
+            <div className="text-xs text-white/50 mt-2 flex flex-wrap gap-x-2">
+              <span>{item.authorName || t("board.anonymous")}</span>
+              {createdText && <span>・ {createdText}</span>}
+              {typeof item.postCount === "number" && (
+                <span>{t("board.replyCount", { count: item.postCount })}</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

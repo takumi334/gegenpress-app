@@ -8,6 +8,7 @@ import { boardRecordDataToViewData } from "@/lib/tacticsBoardViewData";
 import { useT } from "@/lib/NativeLangProvider";
 import { usePostTranslation } from "@/lib/PostTranslationContext";
 import { stripDataUrlsFromText } from "@/lib/tacticsPostBody";
+import { inferLeagueNameForFdTeamId } from "@/lib/xPostHashtags";
 
 type PageProps = {
   params: Promise<{ team: string; threadId: string; id: string }>;
@@ -31,6 +32,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
   const [viewDataWithTranslation, setViewDataWithTranslation] = useState<TacticsBoardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [xPostClubName, setXPostClubName] = useState<string | null>(null);
 
   useEffect(() => {
     params.then(setResolved);
@@ -58,6 +60,30 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
       cancelled = true;
     };
   }, [resolved?.threadId, resolved?.id]);
+
+  useEffect(() => {
+    if (!resolved?.team || !/^\d+$/.test(resolved.team)) {
+      setXPostClubName(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/team/${resolved.team}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("team fetch"))))
+      .then((j: { name?: string }) => {
+        if (!cancelled && typeof j?.name === "string") setXPostClubName(j.name);
+      })
+      .catch(() => {
+        if (!cancelled) setXPostClubName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolved?.team]);
+
+  const xPostLeagueName = useMemo(() => {
+    if (!resolved?.team || !/^\d+$/.test(resolved.team)) return null;
+    return inferLeagueNameForFdTeamId(Number(resolved.team));
+  }, [resolved?.team]);
 
   // 投稿詳細と同じく、翻訳を取得してGIFに反映する
   useEffect(() => {
@@ -211,6 +237,8 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
               copyNativeBody={sanitizedNativeBody || undefined}
               copyTranslatedBody={sanitizedTranslatedBody || undefined}
               copyTargetPath={resolved ? `/board/${resolved.team}/thread/${resolved.threadId}/tactics-board/${resolved.id}` : undefined}
+              xPostTeamDisplayName={xPostClubName}
+              xPostLeagueName={xPostLeagueName}
             />
           </div>
         ) : null}

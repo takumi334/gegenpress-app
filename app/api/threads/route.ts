@@ -1,8 +1,11 @@
 // app/api/threads/route.ts
 import { NextRequest } from "next/server";
-import { listThreads, createThread } from "@/lib/boardApi";
+import { listThreads, createThread, createTacticsBoardForThread } from "@/lib/boardApi";
+import { translateBatch } from "@/lib/translate";
 
 export const runtime = "nodejs";
+
+const DEFAULT_TARGET_LANG = "en";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,9 +18,7 @@ export async function GET(req: NextRequest) {
     if (!Number.isInteger(teamId)) {
       return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400 });
     }
-    console.log("[GET /api/threads] listThreads teamId=", teamId);
     const threads = await listThreads(teamId);
-    // フロントが配列/ items 両方に対応できるように配列を直接返す
     return Response.json(threads, { status: 200 });
   } catch (e: any) {
     console.error("GET /api/threads error:", e);
@@ -30,9 +31,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { teamId, title, body } = await req.json() as {
-      teamId: number | string; title?: string; body?: string;
+    const payload = await req.json() as {
+      teamId: number | string;
+      title?: string;
+      body?: string;
+      threadType?: string | null;
+      tacticPayload?: Record<string, unknown> | null;
+      targetLang?: string;
     };
+    const { teamId, title, body, threadType, tacticPayload, targetLang } = payload;
 
     const t = Number(teamId);
     if (!Number.isInteger(t)) {
@@ -42,9 +49,40 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: "title required" }), { status: 400 });
     }
 
-    const bodyText = typeof body === "string" ? body.trim() : undefined;
-    console.log("[POST /api/threads] createThread teamId=", t);
-    const row = await createThread(t, title.trim(), bodyText);
+    let bodyText = typeof body === "string" ? body.trim() : "";
+    if (bodyText.includes("[tactic]") || bodyText.includes("data:image/png;base64,")) {
+      bodyText = bodyText
+        .replace(/\n*!\[[^\]]*\]\(data:image\/[^)]+\)\n*/g, "\n")
+        .replace(/\n*\[tactic\]\n*/gi, "\n")
+        .replace(/【戦術メモ】[\s\S]*?この投稿は lineup-builder から作成されました[^\n]*\n*/g, "")
+        .trim();
+    }
+    const lang = (targetLang ?? DEFAULT_TARGET_LANG).trim() || DEFAULT_TARGET_LANG;
+
+    let translatedBody: string | null = null;
+    if (bodyText) {
+      try {
+        const [tr] = await translateBatch([bodyText], lang);
+        const candidate = (tr ?? "").trim();
+        translatedBody = candidate && candidate !== bodyText ? candidate : null;
+        console.log("[POST /api/threads] スレッド作成時の翻訳", {
+          originalBody: bodyText.slice(0, 60) + "…",
+          translationResult: candidate ? candidate.slice(0, 60) + "…" : "(empty)",
+          finalTranslatedBody: translatedBody ? "set" : "null",
+        });
+      } catch (translateErr) {
+        console.warn("[POST /api/threads] 翻訳失敗", translateErr);
+      }
+    }
+
+    const allowed = ["PRE_MATCH", "LIVE_MATCH", "POST_MATCH", "GENERAL"] as const;
+    const type = (allowed.includes(threadType as any) ? threadType : null) ?? "GENERAL";
+    const row = await createThread(t, title.trim(), bodyText, type, undefined, translatedBody);
+
+    if (tacticPayload && Array.isArray(tacticPayload.frames) && tacticPayload.frames.length > 0) {
+      await createTacticsBoardForThread(row.id, tacticPayload, { mode: "GENERAL", body: bodyText });
+    }
+
     return Response.json(row, { status: 201 });
   } catch (e: any) {
     console.error("threads POST error", e);
