@@ -35,6 +35,7 @@ export default function SiteHeader() {
                 <Link href="/lineup-builder" className="hover:underline">
                   {lineupBuilderUi.tacticsBoard}
                 </Link>
+                <Link href="/board" className="hover:underline">Board</Link>
               </nav>
             </div>
             <div className="shrink-0 flex flex-wrap items-center gap-3">
@@ -81,6 +82,9 @@ export default function SiteHeader() {
               </Link>
               <Link href="/lineup-builder" className="hover:underline">
                 {lineupBuilderUi.tacticsBoard}
+              </Link>
+              <Link href="/board" className="hover:underline">
+                Board
               </Link>
             </nav>
           </div>
