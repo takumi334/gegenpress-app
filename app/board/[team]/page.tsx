@@ -11,6 +11,7 @@ import BoardHeadings from "./BoardHeadings";
 import { ClubNewsTitle, OfficialVideosTitle } from "./BoardSectionTitles";
 import Link from "next/link";
 import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
+import { getSiteUrl } from "@/lib/publicSiteUrl";
 
 export async function generateMetadata({
   params,
@@ -22,43 +23,49 @@ export async function generateMetadata({
   if (!/^\d+$/.test(teamId)) return { title: "掲示板" };
   const teamName = await getTeamNameFromFD(teamId).catch(() => `Team ${teamId}`);
   const title = `${teamName} 掲示板`;
-  const description = `${teamName}の海外サッカー掲示板。海外ファンの反応や試合予想を翻訳付きでチェックできる翻訳付き掲示板です。`;
-  return { title, description };
+  const description = `${teamName}の海外サッカー掲示板。英語ファンコメントを翻訳付きで読め、試合予想や戦術議論も。`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `${getSiteUrl()}/board/${teamId}` },
+  };
 }
 import ThreadList from "@board/components/ThreadList";
-import { headers } from "next/headers";
 import { listThreads } from "@/lib/boardApi";
+import { getPredictJsonForTeam } from "@/lib/predictCacheService";
+import { headers } from "next/headers";
 
 export default async function TeamBoardPage({
   params,
+  searchParams,
 }: {
   params: { team: string } | Promise<{ team: string }>;
+  searchParams?: Promise<{ highlightThread?: string; highlightReply?: string }>;
 }) {
   // 14/15 両対応
   const { team } = await (params instanceof Promise ? params : Promise.resolve(params));
+  const sp = searchParams ? await searchParams : {};
   const teamId = team.trim();
 
   // 数字だけ許可（/board/57）
   if (!/^\d+$/.test(teamId)) notFound();
-
-  // ベースURL（サーバーフェッチ用）
-  const hdr = await headers();
-  const base =
-    (process.env.VERCEL ? "https://" : "http://") +
-    (hdr.get("host") ?? "localhost:3000");
 
   const defaultTeamName = `Team ${teamId}`;
 
   // 並列取得（teamName に依存するものは then でバインド）
   const teamNamePromise = getTeamNameFromFD(teamId).catch(() => null);
   const threadsPromise = loadThreads(teamId);
+  const hdr = await headers();
+  const hdrHost =
+    (process.env.VERCEL ? "https://" : "http://") +
+    (hdr.get("host") ?? "localhost:3000");
   const newsPromise = teamNamePromise.then((name) =>
-    fetchNews(name ?? defaultTeamName, base),
+    fetchNews(name ?? defaultTeamName, hdrHost),
   );
   const videosPromise = teamNamePromise.then((name) =>
-    fetchVideos(name ?? defaultTeamName, base),
+    fetchVideos(name ?? defaultTeamName, hdrHost),
   );
-  const predictPromise = fetchPredict(teamId, base);
+  const predictPromise = getPredictJsonForTeam(teamId).then((r) => r.json);
 
   const [teamNameResolved, threads, newsItems, videoItems, predict] =
     await Promise.all([
@@ -87,7 +94,12 @@ export default async function TeamBoardPage({
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] gap-6 items-start">
         <div className="space-y-4">
           <NewThreadForm teamId={teamId} />
-          <ThreadList teamId={teamId} initialItems={threads} />
+          <ThreadList
+            teamId={teamId}
+            initialItems={threads}
+            highlightThreadId={sp.highlightThread}
+            highlightReplyId={sp.highlightReply}
+          />
         </div>
 
         <aside className="md:sticky md:top-4 h-fit">
@@ -124,6 +136,8 @@ type ThreadItem = {
   createdAt?: string;
   authorName?: string | null;
   postCount?: number;
+  threadLikeCount?: number;
+  threadLikedByMe?: boolean;
   threadType?: string | null;
   tacticsBoards?: TacticsBoardSummary[];
 };
@@ -137,6 +151,7 @@ async function loadThreads(teamId: string): Promise<ThreadItem[]> {
       body: r.body || "",
       createdAt: r.createdAt?.toISOString?.() ?? undefined,
       postCount: r.postCount ?? 0,
+      threadLikeCount: r.threadLikeCount ?? 0,
       threadType: r.threadType ?? undefined,
       tacticsBoards: r.tacticsBoards?.length
         ? r.tacticsBoards.map((tb) => ({
@@ -199,24 +214,7 @@ type PredictData = {
   topScores?: { h: number; a: number; p: number }[];
   message?: string;
   error?: string;
+  meta?: unknown;
 };
-
-async function fetchPredict(teamId: string, baseUrl: string): Promise<PredictData | null> {
-  try {
-    const url = new URL("/api/predict", baseUrl);
-    url.searchParams.set("teamId", teamId);
-    const res = await fetch(url.toString(), { cache: "no-store" });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error("predict HTTP error", res.status, json?.error);
-      return json ?? null;
-    }
-    return json;
-  } catch (e) {
-    console.error("fetchPredict failed", e);
-    return null;
-  }
-}
-
 
 

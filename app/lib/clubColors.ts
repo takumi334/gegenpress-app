@@ -161,7 +161,6 @@ async function main() {
   mkdirSync(outDir, { recursive: true });
   const outPath = join(outDir, "clubColors.json");
   writeFileSync(outPath, JSON.stringify(map, null, 2), "utf-8");
-  console.log("written:", outPath, Object.keys(map).length, "teams");
 }
 
 main().catch(e => {

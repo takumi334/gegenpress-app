@@ -1,15 +1,10 @@
 import { MetadataRoute } from "next";
 import { LEAGUES } from "@/lib/leagues";
 import prisma from "@/lib/prisma";
-
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+import { getSiteUrl } from "@/lib/publicSiteUrl";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = getBaseUrl();
+  const base = getSiteUrl();
   const entries: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
     { url: `${base}/leagues`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
@@ -23,6 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const teamIds = await prisma.thread.findMany({
+      where: { deletedAt: null },
       select: { teamId: true },
       distinct: ["teamId"],
     });
@@ -39,6 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     const threads = await prisma.thread.findMany({
+      where: { deletedAt: null },
       select: { id: true, teamId: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 2000,

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import GlobeTranslate from "@components/GlobeTranslate";
+import PageI18nTranslateButton from "@components/PageI18nTranslateButton";
 import PostTranslationSelect from "@components/PostTranslationSelect";
 
 export default function SiteHeader() {
@@ -45,6 +46,7 @@ export default function SiteHeader() {
           </div>
           <div className="shrink-0 flex flex-wrap items-center gap-3">
             <PostTranslationSelect />
+            <PageI18nTranslateButton />
             <GlobeTranslate />
           </div>
         </div>

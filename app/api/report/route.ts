@@ -5,6 +5,7 @@ import { prisma, withPrismaRetry } from "@/lib/prisma";
 import util from "node:util";
 import { Prisma } from "@prisma/client";
 import { sendReportMail } from "@/lib/reportMailer";
+import { buildReportEmailContext } from "@/lib/buildReportEmailContext";
 
 /**
  * GET /api/report
@@ -12,7 +13,6 @@ import { sendReportMail } from "@/lib/reportMailer";
  */
 export async function GET() {
   try {
-    console.log("[GET /api/report] report.findMany");
     const items = await withPrismaRetry("GET /api/report report.findMany", () =>
       prisma.report.findMany({
         orderBy: { createdAt: "desc" },
@@ -41,8 +41,6 @@ export async function GET() {
  * 通報作成API
  */
 export async function POST(req: Request) {
-  // どんなリクエストが来ているか最低限ログ
-  const contentType = req.headers.get("content-type") ?? "";
   const ua = req.headers.get("user-agent") ?? null;
 
   try {
@@ -55,19 +53,22 @@ export async function POST(req: Request) {
       body = null;
     }
 
-    // ★ここが欲しいログ（必ず出る）
-    console.log("[/api/report][POST] content-type:", contentType);
-    console.log("[/api/report][POST] raw body:", body);
-
     const { kind, targetId, reason, detail, pageUrl, teamId: bodyTeamId } = (body ?? {}) as Record<
       string,
       unknown
     >;
 
-    // ✅ kind 必須
+    // ✅ kind 必須（DB・削除トークンと一致させる）
     if (typeof kind !== "string" || kind.trim() === "") {
       return NextResponse.json(
         { ok: false, type: "BadRequest", message: "kind is required" },
+        { status: 400 }
+      );
+    }
+    const kindNorm = kind.trim();
+    if (kindNorm !== "thread" && kindNorm !== "post") {
+      return NextResponse.json(
+        { ok: false, type: "BadRequest", message: "kind must be thread or post" },
         { status: 400 }
       );
     }
@@ -81,11 +82,10 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("[POST /api/report] report.create");
     const created = await withPrismaRetry("POST /api/report report.create", () =>
       prisma.report.create({
         data: {
-          kind: kind.trim(),
+          kind: kindNorm,
           targetId: targetIdNum,
           reason:
             typeof reason === "string" && reason.trim() ? reason.trim() : null,
@@ -106,21 +106,12 @@ export async function POST(req: Request) {
         : undefined;
 
     try {
-      await sendReportMail({
-        id: created.id,
-        kind: created.kind,
-        targetId: created.targetId,
-        reason: created.reason,
-        teamId: teamIdForMail,
-        url: created.pageUrl ?? undefined,
-      });
-      console.log("[/api/report][POST] sendReportMail OK");
+      const mailCtx = await buildReportEmailContext(created, teamIdForMail);
+      await sendReportMail(mailCtx);
     } catch (err) {
       console.error("[/api/report][POST] sendReportMail failed:", err);
       // メール失敗しても通報自体は成功にする
     }
-
-    console.log("[/api/report][POST] created:", created);
 
     return NextResponse.json({ ok: true, id: created.id }, { status: 201 });
   } catch (e: unknown) {

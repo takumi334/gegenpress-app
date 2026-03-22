@@ -8,33 +8,29 @@ import { PostTranslationProvider } from "@/lib/PostTranslationContext";
 import SiteHeader from "./components/SiteHeader";
 import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
-
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  return "http://localhost:3000";
-}
+import { getSiteUrl } from "@/lib/publicSiteUrl";
 
 export const metadata = {
-  metadataBase: new URL(getBaseUrl()),
+  metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Gegenpress | 海外サッカー掲示板・試合予想・翻訳付き",
+    default: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
     template: "%s | Gegenpress",
   },
   description:
-    "Gegenpressは海外サッカー掲示板。海外ファンの反応や試合予想を翻訳付きでチェックできる翻訳付き掲示板です。",
+    "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も。海外サッカー好きの日本人ファン向け。",
   openGraph: {
     type: "website",
     locale: "ja_JP",
     siteName: "Gegenpress",
-    title: "Gegenpress | 海外サッカー掲示板・試合予想・翻訳付き",
+    title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
     description:
-      "海外サッカー掲示板。海外ファンの反応や試合予想を翻訳付きでチェックできる翻訳付き掲示板。",
+      "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も。",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gegenpress | 海外サッカー掲示板・試合予想",
-    description: "海外サッカー掲示板。海外ファンの反応や試合予想を翻訳付きでチェック。",
+    title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
+    description:
+      "海外サッカーの翻訳付き掲示板。英語ファンコメントを翻訳で読め、試合予想や戦術議論も。",
   },
   verification: {
     google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",

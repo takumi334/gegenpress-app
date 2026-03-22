@@ -12,7 +12,6 @@ export default function GrammarHints() {
   // localStroageからtargetLangを取得してsetLocaleする処理を追加 2025/11/18
   useEffect(() => {
     const storedLang = localStorage.getItem("targetLang");
-    console.log("storedLang:", storedLang);
     if (storedLang && LANG_OPTIONS.some(l => l.code === storedLang)) {
       setLocale(storedLang as keyof typeof MINI_GRAMMAR);
     }

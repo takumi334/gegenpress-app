@@ -1,21 +1,32 @@
 // lib/reportMailer.ts
 import { Resend } from "resend";
 
-type ReportMailArgs = {
-  id: number | string;
+export type ReportMailContext = {
+  id: number;
+  /** DB の kind（thread / post） */
   kind: string;
-  targetId: number | string;
+  /** メール表示用（スレッド / 返信） */
+  kindLabel: string;
+  targetId: number;
   reason?: string | null;
-  teamId?: number | string | null;
-  url?: string;
+  detail?: string | null;
+  teamId?: number | null;
+  authorName?: string | null;
+  createdAtIso?: string | null;
+  excerpt: string;
+  publicViewUrl: string;
+  /** 返信のみ: 掲示板トップからのショートカット（自動でスレッドへ） */
+  publicBoardShortcutUrl?: string;
+  /** 空ならメールに載せない（秘密未設定など） */
+  adminDeleteUrl: string;
+  /** 本番 URL が使えないときの注記 */
+  siteUrlNote?: string;
 };
 
-export async function sendReportMail(args: ReportMailArgs) {
-  console.log("🔥 sendReportMail CALLED", args);
-
+export async function sendReportMail(args: ReportMailContext) {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.REPORT_TO_EMAIL;
-  const from = process.env.REPORT_FROM_EMAIL; // ← 明示的に必須にする（事故防止）
+  const from = process.env.REPORT_FROM_EMAIL;
 
   if (!apiKey) throw new Error("RESEND_API_KEY is missing");
   if (!to) throw new Error("REPORT_TO_EMAIL is missing");
@@ -23,36 +34,50 @@ export async function sendReportMail(args: ReportMailArgs) {
 
   const resend = new Resend(apiKey);
 
-  const subject = `【通報】${args.kind} #${args.targetId} (${args.reason ?? "no-reason"})`;
+  const subject = `【通報】${args.kindLabel} #${args.targetId} (report ${args.id}) — ${args.reason ?? "no-reason"}`;
 
-  const text = [
-    `Report ID: ${args.id}`,
-    `Kind: ${args.kind}`,
-    `TargetId: ${args.targetId}`,
-    `Reason: ${args.reason ?? ""}`,
-    `TeamId: ${args.teamId ?? ""}`,
-    args.url ? `URL: ${args.url}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const lines = [
+    `reportId: ${args.id}`,
+    `種別（DB kind）: ${args.kind}（表示: ${args.kindLabel}）`,
+    `targetId: ${args.targetId}`,
+    `teamId: ${args.teamId ?? "（不明）"}`,
+    `reason: ${args.reason ?? ""}`,
+    args.detail ? `detail: ${args.detail}` : "",
+    `投稿者名: ${args.authorName ?? "（匿名／スレッドの場合はタイトル参照）"}`,
+    `投稿日時: ${args.createdAtIso ?? "（不明）"}`,
+    "",
+    "── 対象本文抜粋（先頭付近） ──",
+    args.excerpt,
+    "",
+    "── リンク ──",
+    args.publicViewUrl
+      ? `一般確認URL（直接）:\n${args.publicViewUrl}`
+      : `一般確認URL:\n（生成できませんでした）${args.siteUrlNote ? `\n${args.siteUrlNote}` : ""}`,
+    args.publicBoardShortcutUrl
+      ? `一般確認URL（掲示板経由・返信ハイライト）:\n${args.publicBoardShortcutUrl}`
+      : "",
+    "",
+    args.adminDeleteUrl
+      ? `管理者削除URL（共有厳禁・期限付き署名）:\n${args.adminDeleteUrl}`
+      : `管理者削除URL:\n（ADMIN_DELETE_SECRET 未設定または無効のため省略）`,
+    args.siteUrlNote && args.publicViewUrl
+      ? `\n※ URL ベース: ${args.siteUrlNote}`
+      : "",
+  ];
 
-  console.log("🔥 BEFORE resend.emails.send", { from, to, subject });
+  const text = lines.filter(Boolean).join("\n");
 
   const result = await resend.emails.send({
-    from,      // 例: "Gegenpress <noreply@yourdomain.com>"
-    to,        // 例: "あなたのGmail"
+    from,
+    to,
     subject,
     text,
   });
 
-  console.log("🔥 AFTER resend.emails.send result:", result);
-
-  // Resendは失敗時 result.error が入ることがある
-  const anyResult = result as any;
+  const anyResult = result as { error?: { message?: string } };
   if (anyResult?.error) {
     throw new Error(anyResult.error?.message ?? String(anyResult.error));
   }
 
   return result;
 }
-

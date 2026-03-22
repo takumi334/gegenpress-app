@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import AdminKeyDefaultOnLoad from "./AdminKeyDefaultOnLoad";
 import { DeleteThreadButton } from "./DeleteThreadButton";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function AdminReportsPage() {
 
   return (
     <div style={{ padding: 24 }}>
+      <AdminKeyDefaultOnLoad />
       <h1>Reports</h1>
 
       <table cellPadding={8} style={{ borderCollapse: "collapse", width: "100%" }}>

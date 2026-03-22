@@ -269,7 +269,6 @@ export default function TacticsLineupView({
       });
       const name = exportFileName ?? "tactics-board-export.gif";
       url = downloadBlob(blob, name);
-      console.log("[TacticsLineupView] GIF download triggered", name);
       if (copyTargetPath) setShowGifActions(true);
     } catch (e) {
       console.error("[TacticsLineupView] GIF export failed", e);

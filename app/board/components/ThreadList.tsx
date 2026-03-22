@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import ReportButton from "@/components/ReportButton";
+import BoardLikeToggle from "@/board/components/BoardLikeToggle";
+import { getOrCreateAnonId } from "@/lib/anonId";
 import { useT } from "@/lib/NativeLangProvider";
 import { usePostTranslation } from "@/lib/PostTranslationContext";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { normalizeThreadType, THREAD_TYPE } from "@/lib/threadType";
 import TacticsLineupThumbnail from "@components/lineup/TacticsLineupThumbnail";
 import { lineupPayloadToTacticsBoardData, type LineupTacticPayload } from "@/lib/lineupTacticData";
@@ -30,17 +33,30 @@ type Item = {
   authorName?: string | null;
   createdAt?: string;
   postCount?: number;
+  threadLikeCount?: number;
+  threadLikedByMe?: boolean;
   threadType?: string | null;
   tacticsBoards?: TacticsBoardSummary[];
   title_t?: string;
   body_t?: string;
 };
 
-type Props = { teamId: string; initialItems?: Item[] };
+type Props = {
+  teamId: string;
+  initialItems?: Item[];
+  highlightThreadId?: string;
+  highlightReplyId?: string;
+};
 
-export default function ThreadList({ teamId, initialItems }: Props) {
+export default function ThreadList({
+  teamId,
+  initialItems,
+  highlightThreadId,
+  highlightReplyId,
+}: Props) {
+  const router = useRouter();
   const t = useT();
-  const { targetLang, sameLanguage } = usePostTranslation();
+  const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<Item[]>(initialItems ?? []);
   const [rawItems, setRawItems] = useState<Item[]>(initialItems ?? []);
@@ -56,6 +72,104 @@ export default function ThreadList({ teamId, initialItems }: Props) {
     setErr("");
   }, [initialItems]);
 
+  // SSR 済み一覧に、anonId ベースの threadLikedByMe / 最新件数をマージ
+  useEffect(() => {
+    if (!initialItems?.length) return;
+    const anon = getOrCreateAnonId();
+    if (!anon) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/threads?teamId=${encodeURIComponent(teamId)}&anonId=${encodeURIComponent(anon)}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok || cancelled) return;
+        const j = await res.json();
+        const list: Item[] = Array.isArray(j) ? j : [];
+        if (!list.length || cancelled) return;
+        const map = new Map<
+          string,
+          { threadLikeCount?: number; threadLikedByMe?: boolean }
+        >();
+        for (const x of list) {
+          map.set(String(x.id), {
+            threadLikeCount:
+              typeof x.threadLikeCount === "number" ? x.threadLikeCount : undefined,
+            threadLikedByMe: Boolean(x.threadLikedByMe),
+          });
+        }
+        setRawItems((prev) =>
+          prev.map((p) => {
+            const u = map.get(String(p.id));
+            if (!u) return p;
+            return {
+              ...p,
+              threadLikeCount: u.threadLikeCount ?? p.threadLikeCount,
+              threadLikedByMe: u.threadLikedByMe,
+            };
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, initialItems]);
+
+  // /board/TEAM?highlightReply=POST_ID → スレッド詳細へ
+  useEffect(() => {
+    const rid = highlightReplyId?.trim();
+    if (!rid || !/^\d+$/.test(rid)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/posts/${encodeURIComponent(rid)}`, {
+          cache: "no-store",
+        });
+        if (!res.ok || cancelled) return;
+        const j = await res.json().catch(() => ({}));
+        const threadId = j?.threadId;
+        if (typeof threadId !== "number" || cancelled) return;
+        router.replace(
+          `/board/${teamId}/thread/${threadId}?highlightReply=${encodeURIComponent(rid)}`
+        );
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, highlightReplyId, router]);
+
+  useEffect(() => {
+    const tid = highlightThreadId?.trim();
+    if (!tid || !/^\d+$/.test(tid) || !items.length) return;
+    const el = document.querySelector(`[data-thread-row="${tid}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add(
+      "ring-2",
+      "ring-amber-400",
+      "ring-offset-2",
+      "ring-offset-black",
+      "rounded-lg"
+    );
+    const tmr = window.setTimeout(() => {
+      el.classList.remove(
+        "ring-2",
+        "ring-amber-400",
+        "ring-offset-2",
+        "ring-offset-black",
+        "rounded-lg"
+      );
+    }, 4500);
+    return () => window.clearTimeout(tmr);
+  }, [highlightThreadId, items]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -68,7 +182,11 @@ export default function ThreadList({ teamId, initialItems }: Props) {
       try {
         setErr("");
         setLoading(true);
-        const res = await fetch(`/api/threads?teamId=${encodeURIComponent(teamId)}`, {
+        const anon = getOrCreateAnonId();
+        const q = anon
+          ? `teamId=${encodeURIComponent(teamId)}&anonId=${encodeURIComponent(anon)}`
+          : `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(`/api/threads?${q}`, {
           cache: "no-store",
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -98,7 +216,7 @@ export default function ThreadList({ teamId, initialItems }: Props) {
     };
   }, [teamId, initialItems]);
 
-  // 翻訳取得（ヘッダーの Native/Target に従う）。全スレッドを翻訳し、TRANSLATION欄は翻訳結果のみ表示する。
+  // 翻訳取得: 「翻訳する」押下後のみ API（同一原文はサーバキャッシュ）。未実行時は DB 保存済み body 訳のみ表示。
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -114,13 +232,14 @@ export default function ThreadList({ teamId, initialItems }: Props) {
         return;
       }
 
-      if (rawItems[0]) {
-        console.log("[ThreadList] 取得直後（APIで translatedBody を返す）", {
-          "先頭 item.body": rawItems[0].body,
-          "先頭 item.translatedBody": rawItems[0].translatedBody,
-          "先頭 item.title": rawItems[0].title,
-          "先頭 item.threadType": rawItems[0].threadType,
-        });
+      if (translationTrigger === 0) {
+        const pending = rawItems.map((i) => ({
+          ...i,
+          title_t: "",
+          body_t: (i.translatedBody ?? "").trim(),
+        }));
+        if (!cancelled) setItems(pending);
+        return;
       }
 
       const uniqueTexts = new Set<string>();
@@ -149,19 +268,6 @@ export default function ThreadList({ teamId, initialItems }: Props) {
           }
           const trs: string[] = Array.isArray(data?.translations) ? data.translations : [];
           list.forEach((txt, idx) => map.set(txt, (trs[idx] ?? "").trim()));
-          if (rawItems[0] && list.length > 0) {
-            const first = rawItems[0];
-            const nativeBody = (first.body ?? "").trim();
-            const nativeTitle = (first.title ?? "").trim();
-            console.log("[ThreadList] 表示直前デバッグ（先頭スレッド）", {
-              "item.body": first.body,
-              "item.body_t(翻訳後)": nativeBody ? map.get(nativeBody) : undefined,
-              "item.title": first.title,
-              "item.title_t(翻訳後)": nativeTitle ? map.get(nativeTitle) : undefined,
-              "翻訳API 生レスポンス translations 件数": trs.length,
-              "翻訳API 先頭2件": trs.slice(0, 2),
-            });
-          }
         } catch (e) {
           console.warn("[ThreadList] translate failed", e);
           if (!cancelled) setItems(rawItems);
@@ -183,7 +289,7 @@ export default function ThreadList({ teamId, initialItems }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [rawItems, targetLang, sameLanguage]);
+  }, [rawItems, targetLang, sameLanguage, translationTrigger]);
   if (loading && !rawItems.length) return <div className="text-sm text-gray-600">{t("common.loading")}</div>;
   if (err) return <div className="text-red-600">{t("common.error")}: {err}</div>;
   if (!items.length) return <div className="text-sm text-gray-600">{t("board.noPosts")}</div>;
@@ -205,10 +311,20 @@ export default function ThreadList({ teamId, initialItems }: Props) {
             : "";
         const noTranslation = sameLanguage;
         return (
-          <div key={item.id} className="p-3 sm:p-4">
+          <div
+            key={item.id}
+            className="p-3 sm:p-4"
+            data-thread-row={String(item.id)}
+          >
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0 flex-1" />
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <BoardLikeToggle
+                  kind="thread"
+                  targetId={Number(item.id)}
+                  initialLikeCount={item.threadLikeCount ?? 0}
+                  initialLikedByMe={item.threadLikedByMe ?? false}
+                />
                 <Link
                   href={`/board/${teamId}/thread/${item.id}`}
                   className="text-xs border border-white/20 rounded px-2 py-1.5 hover:bg-white/10 text-white"
@@ -216,7 +332,11 @@ export default function ThreadList({ teamId, initialItems }: Props) {
                   {t("board.reply")}
                   {typeof item.postCount === "number" ? ` (${item.postCount})` : ""}
                 </Link>
-                <ReportButton kind="thread" targetId={Number(item.id)} />
+                <ReportButton
+                  kind="thread"
+                  targetId={Number(item.id)}
+                  teamId={teamId}
+                />
               </div>
             </div>
 
@@ -247,8 +367,20 @@ export default function ThreadList({ teamId, initialItems }: Props) {
                       const nativeBody = item.body ?? "";
                       const translationTitle = (item.title_t ?? "").trim();
                       const translationBody = (item.body_t ?? "").trim();
-                      const displayTitle = translationTitle || "(translation unavailable)";
-                      const displayBody = translationBody || (nativeBody ? "(translation unavailable)" : "");
+                      const pendingHint =
+                        translationTrigger === 0
+                          ? "（ヘッダーの「翻訳する」で表示）"
+                          : "";
+                      const displayTitle =
+                        translationTitle ||
+                        (translationTrigger === 0 ? pendingHint : "(translation unavailable)");
+                      const displayBody =
+                        translationBody ||
+                        (nativeBody
+                          ? translationTrigger === 0
+                            ? pendingHint
+                            : "(translation unavailable)"
+                          : "");
                       return (
                         <>
                           <div className="font-semibold text-sm text-white/95 whitespace-pre-wrap break-words">

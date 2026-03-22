@@ -13,8 +13,6 @@ export function DeleteThreadButton({ id }: { id: number }) {
           alert("ADMIN_KEY が localStorage にありません。先に保存してください。");
           return;
         }
-        console.log("sending x-admin-key:", adminKey);
-        // ★ここまで追加
 
         const res = await fetch(`/api/admin/thread/${id}`, {
           method: "DELETE",

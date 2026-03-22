@@ -15,7 +15,7 @@ type SavedLineup = { id: number; formation: string; title: string | null; create
 export default function LineupBuilderPage() {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
-  const { targetLang, sameLanguage } = usePostTranslation();
+  const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [players, setPlayers] = useState<PlayerLite[]>([]);
   const [playersWithTranslation, setPlayersWithTranslation] = useState<PlayerLite[]>([]);
   const [savedList, setSavedList] = useState<SavedLineup[]>([]);
@@ -56,7 +56,7 @@ export default function LineupBuilderPage() {
       setPlayersWithTranslation(players);
       return;
     }
-    if (sameLanguage) {
+    if (sameLanguage || translationTrigger === 0) {
       setPlayersWithTranslation(players);
       return;
     }
@@ -92,7 +92,7 @@ export default function LineupBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [players, targetLang, sameLanguage]);
+  }, [players, targetLang, sameLanguage, translationTrigger]);
 
   const handleSave = useCallback(
     async (formation: FormationId, assignments: SlotAssignments) => {

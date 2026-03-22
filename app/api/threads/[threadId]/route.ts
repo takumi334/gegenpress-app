@@ -17,7 +17,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ threadI
   }
   const anonId = req.nextUrl.searchParams.get("anonId")?.trim() ?? "";
 
-  console.log("[GET /api/threads/[threadId]] thread.findUnique threadId=", index);
   const thread = await withPrismaRetry("GET /api/threads/[threadId] thread.findUnique", () =>
     prisma.thread.findUnique({
       where: { id: index },
@@ -28,6 +27,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ threadI
         body: true,
         translatedBody: true,
         threadType: true,
+        deletedAt: true,
+        _count: { select: { threadLikes: true } },
+        ...(anonId
+          ? { threadLikes: { where: { anonId }, select: { id: true } } }
+          : {}),
         posts: {
           orderBy: { createdAt: "asc" },
           select: {
@@ -50,11 +54,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ threadI
   );
 
   if (!thread) {
-    console.log("[GET /api/threads/[threadId]] thread not found id=", index);
     return NextResponse.json({ error: "thread not found" }, { status: 404 });
   }
 
-  console.log("[GET /api/threads/[threadId]] found thread id=", thread.id, "threadType=", thread.threadType ?? "null");
+  if (thread.deletedAt) {
+    return NextResponse.json({ error: "thread not found" }, { status: 404 });
+  }
+
+  const threadRow = thread as typeof thread & {
+    _count?: { threadLikes: number };
+    threadLikes?: { id: number }[];
+  };
 
   return NextResponse.json({
     id: thread.id,
@@ -63,6 +73,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ threadI
     body: thread.body,
     translatedBody: thread.translatedBody ?? null,
     threadType: thread.threadType ?? null,
+    threadLikeCount: threadRow._count?.threadLikes ?? 0,
+    threadLikedByMe: anonId
+      ? ((threadRow.threadLikes?.length ?? 0) > 0)
+      : false,
     posts: thread.posts.map((p) => ({
       id: p.id,
       author: p.author,

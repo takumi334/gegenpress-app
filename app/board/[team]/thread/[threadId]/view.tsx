@@ -5,6 +5,7 @@ import Link from "next/link";
 import ReportButton from "@components/ReportButton";
 import { useT } from "@/lib/NativeLangProvider";
 import { usePostTranslation } from "@/lib/PostTranslationContext";
+import BoardLikeToggle from "@/board/components/BoardLikeToggle";
 import CommentLikeButton from "@/board/components/CommentLikeButton";
 import { getOrCreateAnonId } from "@/lib/anonId";
 import { canCreateTacticsBoard, normalizeThreadType, THREAD_TYPE } from "@/lib/threadType";
@@ -45,6 +46,8 @@ type ThreadData = {
   teamId: string;
   body: string;
   threadType?: string | null;
+  threadLikeCount?: number;
+  threadLikedByMe?: boolean;
   posts: Post[];
   tacticsBoards?: TacticsBoardItem[];
 };
@@ -84,14 +87,16 @@ export default function ThreadView({
   threadId,
   errorParam,
   tacticsSaved,
+  highlightReplyId,
 }: {
   teamId: string;
   threadId: string;
   errorParam?: string;
   tacticsSaved?: string;
+  highlightReplyId?: string;
 }) {
   const t = useT();
-  const { targetLang, sameLanguage } = usePostTranslation();
+  const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [data, setData] = useState<ThreadData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -125,12 +130,38 @@ export default function ThreadView({
     load();
   }, [threadId, load]);
 
-  // 投稿の翻訳取得（ヘッダーの Native/Target に従う）
+  useEffect(() => {
+    const rid = highlightReplyId?.trim();
+    if (!rid || !data?.posts?.length) return;
+    const el = document.getElementById(`reply-${rid}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add(
+      "ring-2",
+      "ring-amber-400",
+      "ring-offset-2",
+      "ring-offset-black",
+      "rounded-lg"
+    );
+    const tmr = window.setTimeout(() => {
+      el.classList.remove(
+        "ring-2",
+        "ring-amber-400",
+        "ring-offset-2",
+        "ring-offset-black",
+        "rounded-lg"
+      );
+    }, 4500);
+    return () => window.clearTimeout(tmr);
+  }, [highlightReplyId, data?.posts]);
+
+  // 投稿の翻訳取得: 「翻訳する」押下後のみ API（DB の translatedBody は常に表示可）
   useEffect(() => {
     let cancelled = false;
     setPostTranslations({});
     if (!data?.posts?.length) return;
     if (sameLanguage || isNativeOnlyThread(data.threadType)) return;
+    if (translationTrigger === 0) return;
 
     (async () => {
       const unique = new Set<string>();
@@ -170,7 +201,7 @@ export default function ThreadView({
     return () => {
       cancelled = true;
     };
-  }, [data?.id, data?.posts, data?.threadType, targetLang, sameLanguage]);
+  }, [data?.id, data?.posts, data?.threadType, targetLang, sameLanguage, translationTrigger]);
 
   if (loading) return <div className="p-4 text-sm opacity-70">{t("common.loading")}</div>;
   if (err) return <div className="p-4 text-sm text-red-600">{t("common.error")}: {err}</div>;
@@ -196,7 +227,18 @@ export default function ThreadView({
         </div>
       )}
       <header className="space-y-1">
-        <h1 className="text-xl font-bold">{data.title}</h1>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h1 className="text-xl font-bold">{data.title}</h1>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            <BoardLikeToggle
+              kind="thread"
+              targetId={Number(data.id)}
+              initialLikeCount={data.threadLikeCount ?? 0}
+              initialLikedByMe={data.threadLikedByMe ?? false}
+            />
+            <ReportButton kind="thread" targetId={Number(threadId)} teamId={teamId} />
+          </div>
+        </div>
         <div className="text-xs opacity-60">{t("thread.postCount")}: {data.posts.length}</div>
         {data.body ? (
           <div className="mt-1">
@@ -280,20 +322,30 @@ export default function ThreadView({
               const nativeOnly = isNativeOnlyThread(data.threadType);
               const bodyT = postTranslations[p.id];
               const noTranslation = sameLanguage || nativeOnly;
-              const rightBody = noTranslation ? null : (p.translatedBody ?? bodyT ?? p.body);
+              const translationPending =
+                !noTranslation && translationTrigger === 0;
+              const rightBody = noTranslation
+                ? null
+                : (p.translatedBody ?? bodyT ?? (translationTrigger > 0 ? p.body : null));
 
               return (
-                <li key={`post-${p.id}`} className="border border-white/10 rounded p-3 bg-white/[0.02]">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="text-xs text-white/50">
-                      {p.authorName || t("thread.anonymous")}・{new Date(p.createdAt).toLocaleString()}
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
+                <li
+                  key={`post-${p.id}`}
+                  id={`reply-${p.id}`}
+                  className="border border-white/10 rounded p-3 bg-white/[0.02]"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <div className="text-xs text-white/50">
+                        {p.authorName || t("thread.anonymous")}・{new Date(p.createdAt).toLocaleString()}
+                      </div>
                       <CommentLikeButton
                         commentId={Number(p.id)}
                         initialLikeCount={p.likeCount ?? 0}
                         initialLikedByMe={p.likedByMe ?? false}
                       />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -318,7 +370,7 @@ export default function ThreadView({
                       >
                         Xで投稿
                       </button>
-                      <ReportButton kind="post" targetId={Number(p.id)} />
+                      <ReportButton kind="post" targetId={Number(p.id)} teamId={teamId} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -332,6 +384,11 @@ export default function ThreadView({
                         body={p.body}
                         translatedBody={rightBody ?? undefined}
                         noTranslation={noTranslation}
+                        emptyTranslationHint={
+                          translationPending && (p.body ?? "").trim()
+                            ? "（ヘッダーの「翻訳する」で表示）"
+                            : undefined
+                        }
                       />
                     </div>
                   </div>

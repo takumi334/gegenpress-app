@@ -59,11 +59,9 @@ export default function AdBreakProvider({ children }: { children: ReactNode }) {
     const nextContent: Partial<AdContent> = payload ?? {};
     setContent((prev) => ({ ...prev, ...nextContent }));
     setIsOpen(true);
-    console.log("[AdBreak] opened");
     clearTimer();
     timerRef.current = setTimeout(() => {
       setIsOpen(false);
-      console.log("[AdBreak] closed");
       timerRef.current = null;
     }, 2000);
   }, []);

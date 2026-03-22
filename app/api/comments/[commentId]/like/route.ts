@@ -51,7 +51,7 @@ export async function POST(
       );
       const newCount = post._count.postLikes - 1;
       return NextResponse.json({
-        likeCount: newCount,
+        likeCount: Math.max(0, newCount),
         likedByMe: false,
       });
     }

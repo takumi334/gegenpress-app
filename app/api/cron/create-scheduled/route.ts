@@ -2,6 +2,7 @@
 // predict の fixture に基づき ScheduledPost を 3件作成（既存ならスキップ）
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
+import { getPredictJsonForTeam } from "@/lib/predictCacheService";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,10 +39,8 @@ export async function POST(req: NextRequest) {
     }
     const teamId = Number(teamIdStr);
 
-    const base = req.nextUrl.origin;
-    const res = await fetch(`${base}/api/predict?teamId=${teamId}`, { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    const fixture = data?.fixture;
+    const { json: data } = await getPredictJsonForTeam(teamIdStr);
+    const fixture = data?.fixture as { utcDate?: string; id?: number; teams?: { home?: { name?: string }; away?: { name?: string } } } | undefined;
     if (!fixture?.utcDate) {
       return NextResponse.json({ ok: true, created: 0, message: "no fixture" });
     }
@@ -78,7 +77,6 @@ export async function POST(req: NextRequest) {
     for (const s of specs) {
       const runAtLo = new Date(s.runAt.getTime() - 5 * 60000);
       const runAtHi = new Date(s.runAt.getTime() + 5 * 60000);
-      console.log("[POST /api/cron/create-scheduled] scheduledPost.findFirst type=", s.type);
       const existing = await withPrismaRetry("POST /api/cron/create-scheduled scheduledPost.findFirst", () =>
         scheduledPost.findFirst({
           where: {

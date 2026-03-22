@@ -15,57 +15,75 @@ export type ThreadDTO = {
   translatedBody?: string | null;
   createdAt: Date;
   postCount?: number;
+  threadLikeCount?: number;
+  threadLikedByMe?: boolean;
   threadType?: string | null;
   tacticsBoards?: TacticsBoardSummary[];
 };
 
-export async function listThreads(teamId: number) {
+export async function listThreads(
+  teamId: number,
+  options?: { anonId?: string }
+) {
   const op = "boardApi.listThreads";
-  const rows = await withPrismaRetry(op, () => prisma.thread.findMany({
-    where: { teamId },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      teamId: true,
-      title: true,
-      body: true,
-      translatedBody: true,
-      createdAt: true,
-      threadType: true,
-      _count: { select: { posts: true } },
-      tacticsBoards: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: { id: true, data: true, createdAt: true },
+  const anonId = options?.anonId?.trim();
+  const rows = await withPrismaRetry(op, () =>
+    prisma.thread.findMany({
+      where: { teamId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        teamId: true,
+        title: true,
+        body: true,
+        translatedBody: true,
+        createdAt: true,
+        threadType: true,
+        _count: { select: { posts: true, threadLikes: true } },
+        ...(anonId
+          ? { threadLikes: { where: { anonId }, select: { id: true } } }
+          : {}),
+        tacticsBoards: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { id: true, data: true, createdAt: true },
+        },
       },
-    },
-  }));
-  return rows.map((r) => ({
-    id: r.id,
-    teamId: r.teamId,
-    title: r.title,
-    body: r.body,
-    translatedBody: r.translatedBody ?? undefined,
-    createdAt: r.createdAt,
-    postCount: r._count.posts,
-    threadType: r.threadType ?? undefined,
-    tacticsBoards: r.tacticsBoards?.length
-      ? r.tacticsBoards.map((tb) => ({
-          id: tb.id,
-          data: tb.data,
-          createdAt: tb.createdAt,
-        }))
-      : undefined,
-  }));
+    })
+  );
+  return rows.map((r) => {
+    const row = r as typeof r & { threadLikes?: { id: number }[] };
+    return {
+      id: r.id,
+      teamId: r.teamId,
+      title: r.title,
+      body: r.body,
+      translatedBody: r.translatedBody ?? undefined,
+      createdAt: r.createdAt,
+      postCount: r._count.posts,
+      threadLikeCount: r._count.threadLikes,
+      threadLikedByMe: anonId ? (row.threadLikes?.length ?? 0) > 0 : undefined,
+      threadType: r.threadType ?? undefined,
+      tacticsBoards: r.tacticsBoards?.length
+        ? r.tacticsBoards.map((tb) => ({
+            id: tb.id,
+            data: tb.data,
+            createdAt: tb.createdAt,
+          }))
+        : undefined,
+    };
+  });
 }
 
 export async function getThreadById(threadId: number) {
-  return withPrismaRetry("boardApi.getThreadById", () =>
+  const row = await withPrismaRetry("boardApi.getThreadById", () =>
     prisma.thread.findUnique({
       where: { id: threadId },
-      select: { id: true, teamId: true, title: true, body: true },
+      select: { id: true, teamId: true, title: true, body: true, deletedAt: true },
     })
   );
+  if (!row || row.deletedAt) return null;
+  return { id: row.id, teamId: row.teamId, title: row.title, body: row.body };
 }
 
 export async function createThread(

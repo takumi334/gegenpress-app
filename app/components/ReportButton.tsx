@@ -6,10 +6,12 @@ import { useT } from "@/lib/NativeLangProvider";
 type Props = {
   kind: "thread" | "post";
   targetId: number;
+  /** 通報メールの teamId・確認 URL 用（掲示板のチーム ID） */
+  teamId?: string;
   pageUrl?: string;
 };
 
-export default function ReportButton({ kind, targetId, pageUrl }: Props) {
+export default function ReportButton({ kind, targetId, teamId, pageUrl }: Props) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("spam");
@@ -31,6 +33,10 @@ export default function ReportButton({ kind, targetId, pageUrl }: Props) {
           reason,
           detail,
           pageUrl: pageUrl ?? location.href,
+          teamId:
+            teamId !== undefined && teamId !== ""
+              ? Number(teamId)
+              : undefined,
         }),
       });
 

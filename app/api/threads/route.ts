@@ -2,6 +2,11 @@
 import { NextRequest } from "next/server";
 import { listThreads, createThread, createTacticsBoardForThread } from "@/lib/boardApi";
 import { translateBatch } from "@/lib/translate";
+import {
+  containsBannedWords,
+  containsBannedWordsInFields,
+  MODERATION_ERROR_MESSAGE,
+} from "@/lib/moderation";
 
 export const runtime = "nodejs";
 
@@ -18,7 +23,11 @@ export async function GET(req: NextRequest) {
     if (!Number.isInteger(teamId)) {
       return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400 });
     }
-    const threads = await listThreads(teamId);
+    const anonId = searchParams.get("anonId")?.trim();
+    const threads = await listThreads(
+      teamId,
+      anonId ? { anonId } : undefined
+    );
     return Response.json(threads, { status: 200 });
   } catch (e: any) {
     console.error("GET /api/threads error:", e);
@@ -38,8 +47,10 @@ export async function POST(req: NextRequest) {
       threadType?: string | null;
       tacticPayload?: Record<string, unknown> | null;
       targetLang?: string;
+      authorName?: string;
     };
-    const { teamId, title, body, threadType, tacticPayload, targetLang } = payload;
+    const { teamId, title, body, threadType, tacticPayload, targetLang, authorName } =
+      payload;
 
     const t = Number(teamId);
     if (!Number.isInteger(t)) {
@@ -49,6 +60,9 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: "title required" }), { status: 400 });
     }
 
+    const displayName =
+      typeof authorName === "string" ? authorName.trim().slice(0, 80) : "";
+
     let bodyText = typeof body === "string" ? body.trim() : "";
     if (bodyText.includes("[tactic]") || bodyText.includes("data:image/png;base64,")) {
       bodyText = bodyText
@@ -57,6 +71,18 @@ export async function POST(req: NextRequest) {
         .replace(/【戦術メモ】[\s\S]*?この投稿は lineup-builder から作成されました[^\n]*\n*/g, "")
         .trim();
     }
+
+    if (
+      containsBannedWordsInFields([title.trim(), bodyText, displayName]) ||
+      (tacticPayload != null &&
+        Object.keys(tacticPayload).length > 0 &&
+        containsBannedWords(JSON.stringify(tacticPayload)))
+    ) {
+      return new Response(JSON.stringify({ error: MODERATION_ERROR_MESSAGE }), {
+        status: 400,
+      });
+    }
+
     const lang = (targetLang ?? DEFAULT_TARGET_LANG).trim() || DEFAULT_TARGET_LANG;
 
     let translatedBody: string | null = null;
@@ -65,11 +91,6 @@ export async function POST(req: NextRequest) {
         const [tr] = await translateBatch([bodyText], lang);
         const candidate = (tr ?? "").trim();
         translatedBody = candidate && candidate !== bodyText ? candidate : null;
-        console.log("[POST /api/threads] スレッド作成時の翻訳", {
-          originalBody: bodyText.slice(0, 60) + "…",
-          translationResult: candidate ? candidate.slice(0, 60) + "…" : "(empty)",
-          finalTranslatedBody: translatedBody ? "set" : "null",
-        });
       } catch (translateErr) {
         console.warn("[POST /api/threads] 翻訳失敗", translateErr);
       }

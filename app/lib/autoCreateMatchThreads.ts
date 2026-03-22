@@ -135,7 +135,6 @@ export async function runAutoCreateMatchThreads(now: Date): Promise<{
 }> {
   const competitions = getTargetCompetitions();
   if (competitions.length === 0) {
-    console.log("[autoCreateMatchThreads] FOOTBALL_TARGET_COMPETITIONS is empty, skipping");
     return { createdCount: 0, skippedCount: 0, failedCount: 0, matches: [] };
   }
 

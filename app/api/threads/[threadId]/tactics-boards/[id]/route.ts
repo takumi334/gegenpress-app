@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 import { isTacticsBoardCreateAllowed } from "@/lib/threadType";
+import {
+  containsBannedWords,
+  containsBannedWordsInFields,
+  MODERATION_ERROR_MESSAGE,
+} from "@/lib/moderation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +65,18 @@ export async function PATCH(
   const bodyText =
     body.body === undefined ? undefined : typeof body.body === "string" ? body.body : null;
   const data = body.data !== undefined ? body.data : undefined;
+
+  const checkTitle = title !== undefined ? title ?? "" : "";
+  const checkBody = bodyText !== undefined ? bodyText ?? "" : "";
+  if (
+    (title !== undefined || bodyText !== undefined) &&
+    containsBannedWordsInFields([checkTitle, checkBody])
+  ) {
+    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+  }
+  if (data !== undefined && containsBannedWords(JSON.stringify(data))) {
+    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+  }
 
   const updated = await withPrismaRetry("PATCH tactics-boards update", () =>
     prisma.tacticsBoard.update({

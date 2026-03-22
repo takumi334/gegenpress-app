@@ -1,56 +1,92 @@
-// 軽量・依存ゼロの簡易モデレーション（日本語/英語）
-// 必要に応じて語彙は追加可能。境界曖昧回避のため単語境界や語中一致も使います。
+/**
+ * 差別・憎悪表現の検出（新規投稿のみサーバー側で拒否）。
+ * 正規化後に部分一致するよう、禁止語は運用で `RAW_BANNED_PHRASES` に追加してください。
+ */
 
-export type ModerationResult = { ok: true } | { ok: false; label: string; term: string };
+export const MODERATION_ERROR_MESSAGE =
+  "不適切な表現が含まれているため投稿できません";
 
-const HATE_SLURS = [
-  // ★ ここは例示。必要に応じて運用で拡張/調整してください。
-  "黒人", "白人至上", "ユダヤ人", "障害者を侮辱", "ホモ", "レズ", "トランス差別",
-  "chink", "gook", "retard", "faggot", "tranny", "kike", "spic", "wetback",
-];
-
-const VIOLENCE = [
-  "殺す", "殺害", "皆殺し", "死ね", "刺す", "撃ち殺", "焼き殺", "リンチ", "吊るし首",
-  "kill", "murder", "lynch", "shoot you", "gas you", "die bitch",
-];
-
-// （必要なら）卑語・侮辱
-const PROFANITY = [
-  "くそ", "馬鹿", "死ね", "氏ね", "ぶっ殺", "黙れ",
-  "fuck", "shit", "bitch", "asshole", "bastard", "dumbass",
-];
-
-// 正規化（全角→半角/ひら→カナ は最低限。用途に応じて強化してください）
-function normalize(s: string) {
-  return s
-    .toLowerCase()
-    .replace(/[！-／：-＠［-｀｛-～]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)) // 全角記号
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)) // 全角英数
-    .replace(/\s+/g, " ")
-    .trim();
+/**
+ * 検出用にテキストを正規化する。
+ * - NFKC
+ * - 小文字化（英字）
+ * - 全角英数・主要記号を半角相当へ
+ * - 空白類削除
+ * - Unicode 記号・句読点等を削除（差 別・差-別 等の回避を吸収）
+ */
+export function normalizeForBannedScan(text: string): string {
+  if (!text) return "";
+  let s = text.normalize("NFKC");
+  s = s.toLowerCase();
+  // 全角英数字 → 半角
+  s = s.replace(/[！-～]/g, (c) => {
+    const code = c.charCodeAt(0);
+    if (code >= 0xff01 && code <= 0xff5e) {
+      return String.fromCharCode(code - 0xfee0);
+    }
+    return c;
+  });
+  // ゼロ幅等
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
+  // 空白削除（全角含む）
+  s = s.replace(/\s+/g, "");
+  // 記号・装飾（英数字・_ 以外の「記号」的なものを広めに落とす）
+  s = s.replace(/[\p{P}\p{S}]/gu, "");
+  return s;
 }
 
-function matchAny(text: string, terms: string[]) {
-  for (const t of terms) {
-    if (!t) continue;
-    const pat = new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"); // 単純語中一致
-    if (pat.test(text)) return t;
+/**
+ * 禁止フレーズ（生テキスト）。短すぎる単独語は誤検知を避け長めの語・フレーズを優先。
+ * 必要に応じて追加してください（コミット前に運用ポリシーに合わせて調整）。
+ */
+const RAW_BANNED_PHRASES: string[] = [
+  // --- 英語圏の人種・民族ヘイト（明確なスラー） ---
+  "chink",
+  "gook",
+  "kike",
+  "nigger",
+  "spic",
+  "wetback",
+  "white power",
+  "whitepower",
+  // --- 性的少数・性自認への侮蔑 ---
+  "faggot",
+  "tranny",
+  "dyke",
+  // --- 障害への侮蔑 ---
+  "retard",
+  // --- 日本語：差別・ヘイトで用いられる表現（運用で追加推奨） ---
+  "バカチョン",
+  "シナ人",
+  "支那人",
+  "シナジン",
+  "エタヒニン",
+  "穢多非人",
+];
+
+const NORMALIZED_BANNED = Array.from(
+  new Set(
+    RAW_BANNED_PHRASES.map((p) => normalizeForBannedScan(p)).filter(
+      (p) => p.length >= 2
+    )
+  )
+);
+
+export function containsBannedWords(text: string): boolean {
+  const n = normalizeForBannedScan(text);
+  if (!n) return false;
+  for (const term of NORMALIZED_BANNED) {
+    if (term.length > 0 && n.includes(term)) return true;
   }
-  return null;
+  return false;
 }
 
-export function checkModeration(raw: string): ModerationResult {
-  const text = normalize(raw);
-
-  const v = matchAny(text, VIOLENCE);
-  if (v) return { ok: false, label: "暴力/殺害表現", term: v };
-
-  const h = matchAny(text, HATE_SLURS);
-  if (h) return { ok: false, label: "差別・憎悪表現", term: h };
-
-  const p = matchAny(text, PROFANITY);
-  if (p) return { ok: false, label: "卑語/侮辱表現", term: p };
-
-  return { ok: true };
+/** 複数フィールドのいずれかに禁止語があれば true */
+export function containsBannedWordsInFields(
+  fields: Array<string | null | undefined>
+): boolean {
+  for (const f of fields) {
+    if (f && containsBannedWords(f)) return true;
+  }
+  return false;
 }
-

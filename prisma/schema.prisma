@@ -19,6 +19,7 @@ model Thread {
   createdAt         DateTime          @default(now())
   likes             Int                @default(0)
   deletedAt         DateTime?
+  threadLikes       ThreadLike[]
   posts             Post[]
   autoThreadJob     AutoThreadJob?
   predictedLineups  PredictedLineup[]
@@ -86,6 +87,18 @@ model PostLike {
   @@unique([postId, anonId])
   @@index([postId])
   @@map("post_likes")
+}
+
+model ThreadLike {
+  id        Int      @id @default(autoincrement())
+  threadId  Int
+  anonId    String
+  createdAt DateTime @default(now())
+  thread    Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, anonId])
+  @@index([threadId])
+  @@map("thread_likes")
 }
 
 model Report {
@@ -192,4 +205,34 @@ model VideoSubmission {
   originalPath String
   status       String   @default("pending")
   createdAt    DateTime @default(now())
+}
+
+/// 試合予想 API（/api/predict）の結果。FD レート制限回避のため TTL 付きで再利用。
+model PredictionCache {
+  id         String   @id // "team:{teamId}"
+  teamId     Int
+  matchId    Int?
+  homeTeamId Int?
+  awayTeamId Int?
+  payload    Json
+  fetchedAt  DateTime
+  expiresAt  DateTime
+  status     String // OK | EMPTY
+  errorNote  String?
+
+  @@index([teamId])
+  @@index([expiresAt])
+  @@map("prediction_cache")
+}
+
+/// Google Translation API の結果を永続キャッシュ（同一原文+言語は再APIしない）
+model TranslationCache {
+  id         String   @id // sha256(normalizedSource + NUL + targetLang)
+  targetLang String
+  translated String   @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([targetLang])
+  @@map("translation_cache")
 }

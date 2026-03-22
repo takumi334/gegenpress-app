@@ -2,6 +2,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
 import { translateBatch } from "@/lib/translate";
+import {
+  containsBannedWords,
+  containsBannedWordsInFields,
+  MODERATION_ERROR_MESSAGE,
+} from "@/lib/moderation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,18 +53,19 @@ export async function POST(
       return NextResponse.json({ error: "本文が空です" }, { status: 400 });
     }
 
+    if (
+      containsBannedWordsInFields([originalBody, authorName]) ||
+      (tactic !== undefined && containsBannedWords(JSON.stringify(tactic)))
+    ) {
+      return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+    }
+
     let finalTranslatedBody: string | null = null;
     try {
       const translationInput = [originalBody];
       const translated = await translateBatch(translationInput, targetLang);
       const candidate = (translated[0] ?? "").trim();
       finalTranslatedBody = candidate && candidate !== originalBody ? candidate : null;
-      console.log("[POST posts] 投稿作成時の翻訳", {
-        originalBody: originalBody.slice(0, 80) + (originalBody.length > 80 ? "…" : ""),
-        translationInput: translationInput.length,
-        translationResult: candidate ? candidate.slice(0, 80) + (candidate.length > 80 ? "…" : "") : "(empty)",
-        finalTranslatedBody: finalTranslatedBody ? "set" : "null",
-      });
     } catch (translateErr) {
       console.warn("[POST posts] 翻訳失敗（translatedBody は null で保存）", translateErr);
     }
@@ -90,10 +96,6 @@ export async function POST(
       translatedBody: finalTranslatedBody,
       ...(tactic !== undefined && { tactic }),
     };
-    console.log("[POST posts] DB保存直前", {
-      originalBody: dataBeforeInsert.body.slice(0, 60) + "…",
-      finalTranslatedBody: dataBeforeInsert.translatedBody ?? "null",
-    });
 
     const post = await withPrismaRetry("POST /api/threads/[threadId]/posts post.create", () =>
       prisma.post.create({
@@ -101,12 +103,6 @@ export async function POST(
         select: { id: true, body: true, translatedBody: true, createdAt: true },
       })
     );
-
-    console.log("[POST posts] 保存後の行", {
-      id: post.id,
-      body: (post.body ?? "").slice(0, 60) + "…",
-      translatedBody: post.translatedBody ?? "null",
-    });
 
     return NextResponse.json({ id: post.id }, { status: 201 });
   } catch (e: unknown) {

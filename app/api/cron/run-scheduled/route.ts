@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
 
     const now = new Date();
     const limit = 20;
-    console.log("[POST /api/cron/run-scheduled] scheduledPost.findMany");
     const pending = await withPrismaRetry("POST /api/cron/run-scheduled scheduledPost.findMany", () =>
       (prisma as any).scheduledPost.findMany({
         where: { runAt: { lte: now }, postedAt: null },
@@ -30,7 +29,6 @@ export async function POST(req: NextRequest) {
     let created = 0;
     for (const s of pending) {
       try {
-        console.log("[POST /api/cron/run-scheduled] thread.create id=", s.id);
         const threadType =
           s.type === "LINEUP" ? "PRE_MATCH"
           : s.type === "HALFTIME" ? "LIVE_MATCH"

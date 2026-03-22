@@ -21,7 +21,6 @@ export async function DELETE(
       );
     }
 
-    console.log("[DELETE /api/admin/reports] thread.update + report.deleteMany id=", id);
     await withPrismaRetry("DELETE /api/admin/reports thread.update", () =>
       prisma.thread.update({
         where: { id },

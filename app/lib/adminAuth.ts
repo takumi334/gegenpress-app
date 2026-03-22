@@ -16,9 +16,8 @@ export async function requireAdmin() {
 
 /**
  * Route Handler 用（Request から cookie ヘッダを拾う）
- * debug=true の時だけログを出す
  */
-export function requireAdminFromRequest(req: Request, debug = false) {
+export function requireAdminFromRequest(req: Request) {
   const cookieHeader = req.headers.get("cookie") ?? "";
   const m = cookieHeader.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
 
@@ -29,12 +28,6 @@ export function requireAdminFromRequest(req: Request, debug = false) {
     } catch {
       v = m[1];
     }
-  }
-
-  if (debug) {
-    console.log("[admin] cookie header length:", cookieHeader.length);
-    console.log("[admin] has gp_admin:", Boolean(m));
-    console.log("[admin] gp_admin length:", v.length);
   }
 
   if (!verifyAdminCookieValue(v)) throw new Error("UNAUTHORIZED");

@@ -15,6 +15,8 @@ export default function PostTranslationSelect() {
     setNativeLang,
     setTargetLang,
     sameLanguage,
+    translationTrigger,
+    requestContentTranslation,
   } = usePostTranslation();
 
   useEffect(() => {
@@ -67,6 +69,17 @@ export default function PostTranslationSelect() {
         <span className="text-[10px] opacity-70 whitespace-nowrap" title="翻訳不要">
           翻訳不要
         </span>
+      )}
+      {!sameLanguage && (
+        <button
+          type="button"
+          onClick={() => requestContentTranslation()}
+          className="rounded-md bg-emerald-700 hover:bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white whitespace-nowrap shrink-0"
+          title="掲示板の本文・タイトルなどを Target 言語に翻訳（API 使用）"
+        >
+          翻訳する
+          {translationTrigger > 0 ? " ✓" : ""}
+        </button>
       )}
     </div>
   );

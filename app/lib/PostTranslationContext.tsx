@@ -36,6 +36,12 @@ type Ctx = {
   setNativeLang: (v: PostTranslationLangCode) => void;
   setTargetLang: (v: PostTranslationLangCode) => void;
   sameLanguage: boolean;
+  /**
+   * 0 = 掲示板本文などは API 翻訳しない（DB 保存済みのみ表示可）。
+   * 「翻訳する」で +1 し、ThreadList / スレッド詳細 / lineup 名などがまとめて API 呼び出し。
+   */
+  translationTrigger: number;
+  requestContentTranslation: () => void;
 };
 
 const PostTranslationCtx = createContext<Ctx | null>(null);
@@ -47,6 +53,7 @@ export function PostTranslationProvider({ children }: { children: ReactNode }) {
   const [targetLang, setTargetState] = useState<PostTranslationLangCode>(
     DEFAULT_TARGET_LANG
   );
+  const [translationTrigger, setTranslationTrigger] = useState(0);
 
   useEffect(() => {
     setNativeState(getStored(STORAGE_NATIVE, DEFAULT_NATIVE_LANG));
@@ -55,6 +62,7 @@ export function PostTranslationProvider({ children }: { children: ReactNode }) {
 
   const setNativeLang = useCallback((v: PostTranslationLangCode) => {
     setNativeState(v);
+    setTranslationTrigger(0);
     try {
       localStorage.setItem(STORAGE_NATIVE, v);
     } catch {}
@@ -62,9 +70,14 @@ export function PostTranslationProvider({ children }: { children: ReactNode }) {
 
   const setTargetLang = useCallback((v: PostTranslationLangCode) => {
     setTargetState(v);
+    setTranslationTrigger(0);
     try {
       localStorage.setItem(STORAGE_TARGET, v);
     } catch {}
+  }, []);
+
+  const requestContentTranslation = useCallback(() => {
+    setTranslationTrigger((n) => n + 1);
   }, []);
 
   const sameLanguage = nativeLang === targetLang;
@@ -75,6 +88,8 @@ export function PostTranslationProvider({ children }: { children: ReactNode }) {
     setNativeLang,
     setTargetLang,
     sameLanguage,
+    translationTrigger,
+    requestContentTranslation,
   };
 
   return (
@@ -93,6 +108,8 @@ export function usePostTranslation() {
       setNativeLang: () => {},
       setTargetLang: () => {},
       sameLanguage: false,
+      translationTrigger: 0,
+      requestContentTranslation: () => {},
     };
   }
   return ctx;

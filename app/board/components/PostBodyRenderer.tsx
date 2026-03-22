@@ -126,11 +126,14 @@ export function PostBodyTranslationOnly({
   body,
   translatedBody,
   noTranslation,
+  emptyTranslationHint,
   className = "",
 }: {
   body: string;
   translatedBody?: string | null;
   noTranslation?: boolean;
+  /** 翻訳待ち（API 未実行）のときの案内文 */
+  emptyTranslationHint?: string;
   className?: string;
 }) {
   const safeTranslated = useMemo(
@@ -144,6 +147,13 @@ export function PostBodyTranslationOnly({
     );
   }
   if (!safeTranslated) {
+    if (emptyTranslationHint) {
+      return (
+        <div className={`text-sm text-white/50 italic ${className}`}>
+          {emptyTranslationHint}
+        </div>
+      );
+    }
     return null;
   }
   return (

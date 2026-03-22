@@ -26,7 +26,7 @@ export default function LineupViewPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { targetLang, sameLanguage } = usePostTranslation();
+  const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [resolvedId, setResolvedId] = useState<string | null>(null);
   const [data, setData] = useState<LineupDetail | null>(null);
   const [dataWithTranslation, setDataWithTranslation] = useState<LineupDetail | null>(null);
@@ -62,7 +62,7 @@ export default function LineupViewPage({
   }, [resolvedId]);
 
   useEffect(() => {
-    if (!data?.players?.length || sameLanguage) {
+    if (!data?.players?.length || sameLanguage || translationTrigger === 0) {
       setDataWithTranslation(data ?? null);
       return;
     }
@@ -103,7 +103,7 @@ export default function LineupViewPage({
     return () => {
       cancelled = true;
     };
-  }, [data, targetLang, sameLanguage]);
+  }, [data, targetLang, sameLanguage, translationTrigger]);
 
   const displayData = dataWithTranslation ?? data;
 

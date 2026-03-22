@@ -25,12 +25,7 @@ export default function TeamRadarComposer({ teamId }: { teamId: string }) {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
-        console.log("standings JSON:", data); // ← 中身確認
-
-        // どの形でも拾えるようにアダプタを用意
         const rows = adaptToRows(data);
-
-        console.log("adapted rows:", rows); // ← 実際テーブル化されたもの
         if (alive) setTable(rows);
       } catch (e: any) {
         if (alive) setErr(e.message ?? "load failed");

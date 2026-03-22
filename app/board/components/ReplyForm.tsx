@@ -22,6 +22,7 @@ export default function ReplyForm({ threadId }: Props) {
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [submitErr, setSubmitErr] = useState<string | null>(null);
 
   // 初回ロード時に返信一覧を取得
   useEffect(() => {
@@ -54,33 +55,39 @@ export default function ReplyForm({ threadId }: Props) {
     if (!body.trim() || sending) return;
 
     setSending(true);
+    setSubmitErr(null);
     try {
       if (!Number.isFinite(threadId)) {
-  console.error("invalid threadId", threadId);
-  return;
-}
+        console.error("invalid threadId", threadId);
+        return;
+      }
 
-const res = await fetch("/api/posts", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    threadId,
-    authorName: author.trim() || undefined,
-    body: body.trim(),
-  }),
-});
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          threadId,
+          authorName: author.trim() || undefined,
+          body: body.trim(),
+        }),
+      });
 
-const data = await res.json().catch(() => null);
+      const data = await res.json().catch(() => null);
 
-if (!res.ok || !data) {
-  console.error("reply failed", res.status, data);
-  return;
-}
+      if (!res.ok || !data) {
+        const msg =
+          (data && typeof data === "object" && "error" in data && typeof (data as { error?: string }).error === "string"
+            ? (data as { error: string }).error
+            : null) || `HTTP ${res.status}`;
+        setSubmitErr(msg);
+        return;
+      }
 
       setReplies((prev) => [...prev, data]);
       setBody("");
     } catch (e) {
       console.error("reply submit error", e);
+      setSubmitErr("送信に失敗しました");
     } finally {
       setSending(false);
     }
@@ -103,6 +110,11 @@ if (!res.ok || !data) {
           className="w-full rounded border border-white/20 bg-black/40 px-2 py-1 text-xs"
           rows={2}
         />
+        {submitErr && (
+          <p className="text-xs text-red-400" role="alert">
+            {submitErr}
+          </p>
+        )}
         <button
           type="submit"
           disabled={sending || !body.trim()}

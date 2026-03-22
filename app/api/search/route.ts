@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
     return Response.json({ items: [] });
   }
 
-  console.log("[GET /api/search] thread.findMany q=", q.slice(0, 30));
   const items = await withPrismaRetry("GET /api/search thread.findMany", () => prisma.thread.findMany({
     where: {
       ...(teamId != null ? { teamId } : {}),

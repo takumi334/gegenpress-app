@@ -146,73 +146,60 @@ export async function translateBatch(texts: string[], target: string): Promise<s
   });
   if (need.length === 0) return out;
 
+  /**
+   * 複数原文を「チャンク列」に展開し、Google の q[] を最大 MAX_SEGMENTS_PER_REQUEST 件ずつまとめて呼ぶ。
+   * （旧実装は原文ごとに逐次 fetch しており、スレッド一覧等で API 回数が爆増していた）
+   */
+  type Expansion = { idx: number; text: string; chunks: string[] };
+  const expansions: Expansion[] = [];
   for (const n of need) {
     const chunks = splitForTranslate(n.text);
-    const originalLength = n.text.length;
-    const chunkCount = chunks.length;
-    const chunkLengths = chunks.map((c) => c.length);
-
-    if (chunkCount === 0) {
+    if (chunks.length === 0) {
       out[n.idx] = "";
       continue;
     }
-    if (chunkCount === 1 && chunks[0] === n.text) {
-      try {
-        const res = await fetch(`${GOOGLE_URL}?key=${key}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ q: [chunks[0]], target, format: "text" }),
-          cache: "no-store",
-        });
-        const body = await res.text();
-        if (!res.ok) {
-          const chunksSplit = splitForTranslate(n.text, 600);
-          const { results: trChunks, failedChunkIndices } = await translateChunkBatch(
-            chunksSplit,
-            target,
-            key
-          );
-          console.warn("[translate] single-chunk request failed, retried by chunks", {
-            responseStatus: res.status,
-            originalLength,
-            chunkCount: chunksSplit.length,
-            failedChunkIndex: failedChunkIndices,
-          });
-          out[n.idx] = trChunks.join("");
-          setCached(n.text, target, out[n.idx]);
-          continue;
-        }
-        const json = JSON.parse(body) as { data?: { translations?: Array<{ translatedText?: string }> } };
-        const tr = (json.data?.translations ?? [])[0]?.translatedText ?? n.text;
-        out[n.idx] = tr;
-        setCached(n.text, target, tr);
-      } catch (e) {
-        console.warn("[translate] single-chunk error", { originalLength, error: e });
-        out[n.idx] = n.text;
-      }
-      continue;
+    expansions.push({ idx: n.idx, text: n.text, chunks });
+  }
+
+  if (expansions.length === 0) return out;
+
+  const flatChunks: string[] = [];
+  /** flatChunks[i] が属する expansions 内の元インデックス（out の添字） */
+  const flatOwnerIdx: number[] = [];
+  for (const ex of expansions) {
+    for (const ch of ex.chunks) {
+      flatChunks.push(ch);
+      flatOwnerIdx.push(ex.idx);
     }
+  }
 
-    console.log("[translate] long text split", {
-      originalLength,
-      chunkCount,
-      chunkLengths,
-    });
-
-    const { results: trChunks, failedChunkIndices } = await translateChunkBatch(chunks, target, key);
-
+  const translatedFlat: string[] = new Array(flatChunks.length);
+  for (let i = 0; i < flatChunks.length; i += MAX_SEGMENTS_PER_REQUEST) {
+    const batch = flatChunks.slice(i, i + MAX_SEGMENTS_PER_REQUEST);
+    const { results, failedChunkIndices } = await translateChunkBatch(batch, target, key);
+    for (let j = 0; j < batch.length; j++) {
+      translatedFlat[i + j] = results[j] ?? batch[j];
+    }
     if (failedChunkIndices.length > 0) {
-      console.warn("[translate] partial failure", {
-        originalLength,
-        chunkCount,
-        failedChunkIndex: failedChunkIndices,
-        responseStatus: "see batch logs above",
+      console.warn("[translate] batch partial failure", {
+        batchStart: i,
+        failedChunkIndices: failedChunkIndices.map((k) => k - i),
       });
     }
+  }
 
-    const joined = trChunks.join("");
-    out[n.idx] = joined;
-    setCached(n.text, target, joined);
+  const partsByOutIdx = new Map<number, string[]>();
+  for (let i = 0; i < translatedFlat.length; i++) {
+    const oi = flatOwnerIdx[i];
+    if (!partsByOutIdx.has(oi)) partsByOutIdx.set(oi, []);
+    partsByOutIdx.get(oi)!.push(translatedFlat[i]);
+  }
+
+  for (const ex of expansions) {
+    const parts = partsByOutIdx.get(ex.idx) ?? [];
+    const joined = parts.join("");
+    out[ex.idx] = joined;
+    setCached(ex.text, target, joined);
   }
 
   return out;

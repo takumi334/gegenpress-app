@@ -396,17 +396,8 @@ export async function exportTacticsToGif(
   }
   const delayMs = options?.delayMs ?? DEFAULT_DELAY_MS;
 
-  console.log(LOG_PREFIX, "GIF export start", {
-    frameCount: frames.length,
-    format: format ?? "legacy",
-    withComment: withCommentLayout,
-    width,
-    height,
-  });
-
   const GIFLib = (await import("gif.js")).default || (await import("gif.js"));
   const workerScript = "/gif.worker.js";
-  console.log(LOG_PREFIX, "workerScript path:", workerScript);
 
   const gif = new (GIFLib as any)({
     workers: 2,
@@ -456,15 +447,10 @@ export async function exportTacticsToGif(
     }
     drawWatermark(ctx, width, height);
     gif.addFrame(canvas, { copy: true, delay: delayMs });
-    console.log(LOG_PREFIX, `frame added: ${i + 1}/${frames.length}`);
   }
 
   return new Promise<Blob>((resolve, reject) => {
-    gif.on("start", () => {
-      console.log(LOG_PREFIX, "GIF render started");
-    });
     gif.on("finished", (blob: Blob) => {
-      console.log(LOG_PREFIX, "GIF render finished", { size: blob?.size });
       resolve(blob);
     });
     gif.on("error", (e: Error) => {
@@ -493,6 +479,5 @@ export function downloadBlob(blob: Blob, filename: string): string {
   a.href = url;
   a.download = filename;
   a.click();
-  console.log(LOG_PREFIX, "download triggered", { filename, blobSize: blob.size });
   return url;
 }

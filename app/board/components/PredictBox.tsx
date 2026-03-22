@@ -19,7 +19,15 @@ type PredictResp = {
   topScores?: { h: number; a: number; p: number }[];
   message?: string;
   error?: string;
+  meta?: { source?: string; reason?: string };
 };
+
+function hasServerPredict(d: PredictResp | null | undefined): boolean {
+  if (!d || d.error) return false;
+  if (d.message && !d.fixture) return true;
+  if (d.fixture) return true;
+  return false;
+}
 
 export default function PredictBox({
   teamId,
@@ -30,27 +38,30 @@ export default function PredictBox({
 }) {
   const t = useT();
   const [data, setData] = useState<PredictResp | null>(
-    initialData && !initialData.error ? initialData : null,
+    hasServerPredict(initialData) ? initialData! : null,
   );
   const [err, setErr] = useState<string>(initialData?.error ?? "");
 
   useEffect(() => {
-    setData(initialData && !initialData?.error ? initialData : null);
+    setData(hasServerPredict(initialData) ? initialData! : null);
     setErr(initialData?.error ?? "");
   }, [initialData]);
 
   useEffect(() => {
     let abort = false;
 
-    // サーバーから初期データが供給された場合はフェッチ不要
-    if (initialData && !initialData.error) return;
+    // SSR で予想 JSON が来ていれば追加フェッチしない（FD 節約）
+    if (hasServerPredict(initialData)) return;
 
     (async () => {
       try {
         const r = await fetch(`/api/predict?teamId=${teamId}`, { cache: "no-store" });
         const j = (await r.json()) as PredictResp;
         if (!r.ok) throw new Error(j?.error || "predict failed");
-        if (!abort) setData(j);
+        if (!abort) {
+          setData(hasServerPredict(j) ? j : null);
+          setErr("");
+        }
       } catch (e: any) {
         if (!abort) setErr(e?.message || String(e));
       }
@@ -72,10 +83,6 @@ export default function PredictBox({
     </section>
   );
 
-  if (typeof console !== "undefined" && console.log) {
-    console.log("[PredictBox] data received", { teamId, hasFixture: Boolean(data?.fixture), message: data?.message, keys: data ? Object.keys(data) : [] });
-  }
-
   if (data.message) {
     return (
       <section className="border rounded p-3 mt-6">
@@ -87,9 +94,6 @@ export default function PredictBox({
 
   const f = data?.fixture;
   if (!f) {
-    if (typeof console !== "undefined" && console.log) {
-      console.log("[PredictBox] no fixture in data", { teamId, dataKeys: data ? Object.keys(data) : [] });
-    }
     return (
       <section className="border rounded p-3 mt-6">
         <h3 className="text-lg font-semibold mb-2">{t("predict.nextFixturePrediction")}</h3>
@@ -117,6 +121,11 @@ export default function PredictBox({
   return (
     <section className="border rounded p-3 mt-6">
       <h3 className="text-lg font-semibold mb-3">{t("predict.nextFixturePrediction")}</h3>
+      {data?.meta?.source === "stale" && (
+        <p className="text-[11px] opacity-60 mb-2">
+          ※ キャッシュを表示しています（バックグラウンドで更新される場合があります）
+        </p>
+      )}
 
       <div className="text-sm leading-6">
         <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-slate-100">

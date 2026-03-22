@@ -25,7 +25,7 @@ type Board = {
 
 export default function TacticsBoardDetailPage({ params }: PageProps) {
   const t = useT();
-  const { targetLang, sameLanguage } = usePostTranslation();
+  const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [resolved, setResolved] = useState<{ team: string; threadId: string; id: string } | null>(null);
   const [board, setBoard] = useState<Board | null>(null);
   const [translatedBody, setTranslatedBody] = useState<string | null>(null);
@@ -85,13 +85,13 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     return inferLeagueNameForFdTeamId(Number(resolved.team));
   }, [resolved?.team]);
 
-  // 投稿詳細と同じく、翻訳を取得してGIFに反映する
+  // 投稿詳細と同じく、翻訳を取得してGIFに反映する（「翻訳する」押下後のみ API）
   useEffect(() => {
     let cancelled = false;
     setTranslatedBody(null);
     const body = board?.body ?? "";
     const textToTranslate = (stripDataUrlsFromText(body) || body).trim();
-    if (!textToTranslate || sameLanguage) return;
+    if (!textToTranslate || sameLanguage || translationTrigger === 0) return;
     (async () => {
       try {
         const res = await fetch("/api/translate", {
@@ -111,7 +111,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [board?.body, targetLang, sameLanguage]);
+  }, [board?.body, targetLang, sameLanguage, translationTrigger]);
 
   const viewData = useMemo(() => boardRecordDataToViewData(board?.data), [board?.data]);
 
@@ -121,6 +121,10 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
       return;
     }
     if (sameLanguage) {
+      setViewDataWithTranslation(viewData);
+      return;
+    }
+    if (translationTrigger === 0) {
       setViewDataWithTranslation(viewData);
       return;
     }
@@ -159,7 +163,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [viewData, targetLang, sameLanguage]);
+  }, [viewData, targetLang, sameLanguage, translationTrigger]);
 
   const dataForView = viewDataWithTranslation ?? viewData;
 

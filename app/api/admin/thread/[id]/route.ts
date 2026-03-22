@@ -2,22 +2,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-
-function requireAdminKey(req: NextRequest) {
-  const got = (req.headers.get("x-admin-key") ?? "").trim();
-  const expected = (process.env.ADMIN_KEY ?? "").trim();
-
-  if (!expected) throw new Error("ADMIN_KEY_MISSING");
-  if (!got) throw new Error("UNAUTHORIZED");
-  if (got !== expected) throw new Error("UNAUTHORIZED");
-}
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 
 export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    requireAdminKey(req);
+    requireAdminApiKey(req);
 
     const { id: idStr } = await context.params;
     const id = Number(idStr);
@@ -25,37 +17,37 @@ export async function DELETE(
       return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
     }
 
-    console.log("[DELETE /api/admin/thread/[id]] report.deleteMany + thread id=", id);
-    const reportResult = await withPrismaRetry("DELETE /api/admin/thread report.deleteMany", () =>
-      prisma.report.deleteMany({
-        where: { kind: "thread", targetId: id },
-      })
+    const reportResult = await withPrismaRetry(
+      "DELETE /api/admin/thread report.deleteMany",
+      () =>
+        prisma.report.deleteMany({
+          where: { kind: "thread", targetId: id },
+        })
     );
+
     const exists = await withPrismaRetry("DELETE /api/admin/thread thread.findUnique", () =>
       prisma.thread.findUnique({ where: { id } })
     );
+
     if (exists) {
-      await withPrismaRetry("DELETE /api/admin/thread thread.delete", () =>
-        prisma.thread.delete({ where: { id } })
+      await withPrismaRetry("DELETE /api/admin/thread thread.update deletedAt", () =>
+        prisma.thread.update({
+          where: { id },
+          data: { deletedAt: new Date() },
+        })
       );
     }
 
     return NextResponse.json({
       ok: true,
-      deletedThread: Boolean(exists),
+      softDeletedThread: Boolean(exists),
       deletedReports: reportResult.count,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
 
-    const status =
-      msg === "UNAUTHORIZED" ? 401 :
-      msg === "ADMIN_KEY_MISSING" ? 500 :
-      500;
+    const status = msg === "UNAUTHORIZED" ? 401 : 500;
 
-    const message =
-      msg === "ADMIN_KEY_MISSING" ? "ADMIN_KEY is missing in env" : msg;
-
-    return NextResponse.json({ ok: false, message }, { status });
+    return NextResponse.json({ ok: false, message: msg }, { status });
   }
 }

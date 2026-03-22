@@ -39,12 +39,24 @@ const normalized =
 
       setMatch(normalized ?? null);
 
-      if (data?.match?.homeTeam?.id != null && data?.match?.awayTeam?.id != null) {
-        const h = data.match.homeTeam.id;
-        const a = data.match.awayTeam.id;
-        const pr = await fetch(`/api/predict?homeId=${h}&awayId=${a}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
-        if (!mounted) return;
-        setPred(pr ?? null);
+      const pr = data?.predict as
+        | {
+            xg?: { home: number; away: number };
+            topScores?: { h: number; a: number; p: number }[];
+            message?: string;
+          }
+        | null
+        | undefined;
+      if (pr && pr.xg && Array.isArray(pr.topScores) && !pr.message) {
+        setPred({
+          exp: { home: pr.xg.home, away: pr.xg.away },
+          top: pr.topScores.map((s) => ({
+            score: `${s.h}-${s.a}`,
+            p: s.p,
+          })),
+        });
+      } else {
+        setPred(null);
       }
       setLoading(false);
     })();
