@@ -4,6 +4,13 @@ import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl;
+  const gifMatch = url.pathname.match(/^\/lineup-builder\/(\d+)\.gif$/);
+  if (gifMatch) {
+    const rewriteUrl = url.clone();
+    rewriteUrl.pathname = `/lineup-builder/${gifMatch[1]}/gif`;
+    return NextResponse.rewrite(rewriteUrl);
+  }
+
   // 既に region Cookie があるならスキップ
   const has = req.cookies.get("region")?.value;
   if (!has) {
