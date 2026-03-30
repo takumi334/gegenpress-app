@@ -11,8 +11,26 @@ const mapLeague = (val: string) => {
     "135": "SA",  // Serie A
     "140": "PD",  // LaLiga
     "61": "FL1",  // Ligue 1
+    "88": "DED",  // Eredivisie
+    "94": "PPL",  // Primeira Liga
   };
   return m[val] ?? val;
+};
+
+type StandingEntry = {
+  type?: string;
+  table?: Array<{
+    position?: number;
+    team?: { id?: number; name?: string };
+    playedGames?: number;
+    won?: number;
+    draw?: number;
+    lost?: number;
+    points?: number;
+    goalsFor?: number;
+    goalsAgainst?: number;
+    goalDifference?: number;
+  }>;
 };
 
 export async function GET(req: Request) {
@@ -37,11 +55,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as { standings?: StandingEntry[] };
 
     // ▼ TOTAL（総合順位）のテーブルだけを抽出して前提の形に整形
-    const total = (data?.standings ?? []).find((s: any) => s?.type === "TOTAL");
-    const table = (total?.table ?? []).map((r: any) => ({
+    const total = (data?.standings ?? []).find((s) => s?.type === "TOTAL");
+    const table = (total?.table ?? []).map((r) => ({
       position: r?.position,
       teamId:   r?.team?.id,
       teamName: r?.team?.name,
@@ -56,8 +74,9 @@ export async function GET(req: Request) {
     }));
 
     return NextResponse.json({ table }, { status: 200 });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "internal" }, { status: 500 });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "internal";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
