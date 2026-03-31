@@ -102,15 +102,18 @@ export default function ThreadView({
   const [err, setErr] = useState<string | null>(null);
   const [postTranslations, setPostTranslations] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceFresh = false) => {
     setLoading(true);
     setErr(null);
     try {
       const anonId = getOrCreateAnonId();
-      const url = anonId
+      const baseUrl = anonId
         ? `/api/threads/${threadId}?anonId=${encodeURIComponent(anonId)}`
         : `/api/threads/${threadId}`;
-      const r = await fetch(url, { cache: "no-store" });
+      const url = forceFresh
+        ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}_ts=${Date.now()}`
+        : baseUrl;
+      const r = await fetch(url);
       if (!r.ok) {
         const j = await r.json().catch(() => ({}));
         throw new Error(j?.error || `HTTP ${r.status}`);
@@ -179,7 +182,6 @@ export default function ThreadView({
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            cache: "no-store",
             body: JSON.stringify({ q: list, target: targetLang }),
           });
           if (!res.ok) throw new Error("translate failed");
@@ -410,7 +412,7 @@ export default function ThreadView({
 
       <ReplyForm
         threadId={threadId}
-        onPosted={load}
+        onPosted={() => load(true)}
         returnTo={`/board/${teamId}/thread/${threadId}`}
       />
 

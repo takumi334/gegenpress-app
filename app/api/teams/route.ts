@@ -1,5 +1,8 @@
 // app/api/teams/route.ts
 import { NextResponse } from "next/server";
+const LEAGUES_CACHE_HEADERS: Record<string, string> = {
+  "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=600",
+};
 
 const host = process.env.APISPORTS_HOST!;
 const key  = process.env.APISPORTS_KEY!;
@@ -10,16 +13,16 @@ export async function GET(req: Request) {
   const season = searchParams.get("season") ?? "2024";
 
   if (!league) {
-    return NextResponse.json({ error: "league is required" }, { status: 400 });
+    return NextResponse.json({ error: "league is required" }, { status: 400, headers: LEAGUES_CACHE_HEADERS });
   }
 
   const url = `https://${host}/teams?league=${league}&season=${season}`;
   const res = await fetch(url, {
     headers: { "x-apisports-key": key },
-    cache: "no-store",
+    next: { revalidate: 60 * 30 },
   });
 
   const data = await res.json();
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: LEAGUES_CACHE_HEADERS });
 }
 

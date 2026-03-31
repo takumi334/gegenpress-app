@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+const LEAGUES_CACHE_HEADERS: Record<string, string> = {
+  "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=600",
+};
 
 const FD_BASE = process.env.FD_BASE ?? "https://api.football-data.org/v4";
 const FD_KEY  = process.env.FOOTBALL_DATA_API_KEY!;
@@ -44,14 +47,14 @@ export async function GET(req: Request) {
 
     const res = await fetch(url, {
       headers: { "X-Auth-Token": FD_KEY },
-      cache: "no-store",
+      next: { revalidate: 60 * 30 },
     });
 
     if (!res.ok) {
       const text = await res.text();
       return NextResponse.json(
         { error: "upstream_error", status: res.status, detail: text.slice(0,300) },
-        { status: 502 }
+        { status: 502, headers: LEAGUES_CACHE_HEADERS }
       );
     }
 
@@ -73,10 +76,10 @@ export async function GET(req: Request) {
       gd:       r?.goalDifference,
     }));
 
-    return NextResponse.json({ table }, { status: 200 });
+    return NextResponse.json({ table }, { status: 200, headers: LEAGUES_CACHE_HEADERS });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "internal";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500, headers: LEAGUES_CACHE_HEADERS });
   }
 }
 

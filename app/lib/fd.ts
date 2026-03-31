@@ -29,12 +29,16 @@ function buildUrl(path: string) {
 /** 共通 fetch（Next の再検証キャッシュで 1h に1回だけ取得） */
 export async function fdFetch<T>(
   path: string,
-  init: RequestInit = {},
+  init: RequestInit & { next?: { revalidate?: number | false; tags?: string[] } } = {},
 ): Promise<T> {
   const url = buildUrl(path);
+  const cacheNoStore = init.cache === "no-store";
+  const nextConfig = cacheNoStore
+    ? init.next
+    : (init.next ?? { revalidate: FD_REVALIDATE_SECONDS });
   const res = await fetch(url, {
     ...init,
-    next: { revalidate: FD_REVALIDATE_SECONDS },
+    next: nextConfig,
     headers: {
       ...(init.headers || {}),
       "X-Auth-Token": FD_KEY,

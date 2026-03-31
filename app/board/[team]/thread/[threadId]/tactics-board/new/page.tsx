@@ -26,7 +26,7 @@ export default function NewTacticsBoardPage({ params }: PageProps) {
     if (!resolved?.threadId) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/threads/${resolved.threadId}`, { cache: "no-store" })
+    fetch(`/api/threads/${resolved.threadId}`)
       .then((r) => r.json())
       .then((data: { threadType?: string | null }) => {
         if (!cancelled) setAllowed(isTacticsBoardCreateAllowed(data.threadType));

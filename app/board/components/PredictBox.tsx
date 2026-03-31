@@ -55,7 +55,7 @@ export default function PredictBox({
 
     (async () => {
       try {
-        const r = await fetch(`/api/predict?teamId=${teamId}`, { cache: "no-store" });
+        const r = await fetch(`/api/predict?teamId=${teamId}`);
         const j = (await r.json()) as PredictResp;
         if (!r.ok) throw new Error(j?.error || "predict failed");
         if (!abort) {

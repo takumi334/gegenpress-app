@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 import { MOCK_PLAYERS } from "@/lib/lineupPlayers";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +35,13 @@ export async function GET() {
           positionCategory: p.positionCategory,
           teamName: p.teamName,
           shirtNumber: p.shirtNumber,
-        }))
+        })),
+        { headers: NO_STORE_HEADERS }
       );
     }
-    return NextResponse.json(MOCK_PLAYERS);
+    return NextResponse.json(MOCK_PLAYERS, { headers: NO_STORE_HEADERS });
   } catch (e) {
     console.error("[GET /api/lineup/players]", e);
-    return NextResponse.json(MOCK_PLAYERS);
+    return NextResponse.json(MOCK_PLAYERS, { headers: NO_STORE_HEADERS });
   }
 }

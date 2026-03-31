@@ -7,6 +7,10 @@ import {
 } from "@/lib/translationCacheKey";
 import { dbTranslationLookup, dbTranslationUpsertMany } from "@/lib/translationCacheDb";
 
+const TRANSLATE_CACHE_HEADERS: Record<string, string> = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+};
+
 function memKvKey(target: string, normalizedText: string): string {
   return `tr:${target}:${translationCacheKey(normalizedText, target)}`;
 }
@@ -19,13 +23,13 @@ export async function POST(req: NextRequest) {
 
     if (!target) {
       console.error("translate: target missing", body);
-      return NextResponse.json({ error: "target required" }, { status: 400 });
+      return NextResponse.json({ error: "target required" }, { status: 400, headers: TRANSLATE_CACHE_HEADERS });
     }
 
     const clean = texts.map((t) => normalizeTranslationSource(String(t ?? "")));
     if (clean.length === 0 || !clean[0]) {
       console.error("translate: empty text");
-      return NextResponse.json({ error: "text required" }, { status: 400 });
+      return NextResponse.json({ error: "text required" }, { status: 400, headers: TRANSLATE_CACHE_HEADERS });
     }
 
     const results: (string | undefined)[] = new Array(clean.length);
@@ -90,11 +94,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      translations: results.map((r, i) => r ?? clean[i] ?? ""),
-    });
+    return NextResponse.json(
+      {
+        translations: results.map((r, i) => r ?? clean[i] ?? ""),
+      },
+      { headers: TRANSLATE_CACHE_HEADERS }
+    );
   } catch (err) {
     console.error("translate route error:", err);
-    return NextResponse.json({ error: "bad request" }, { status: 400 });
+    return NextResponse.json({ error: "bad request" }, { status: 400, headers: TRANSLATE_CACHE_HEADERS });
   }
 }

@@ -35,6 +35,9 @@ import { listThreads } from "@/lib/boardApi";
 import { getPredictJsonForTeam } from "@/lib/predictCacheService";
 import { headers } from "next/headers";
 
+export const revalidate = 60;
+const BOARD_REVALIDATE_SECONDS = 60;
+
 export default async function TeamBoardPage({
   params,
   searchParams,
@@ -175,7 +178,7 @@ async function fetchNews(teamName: string, baseUrl: string): Promise<NewsItem[]>
     url.searchParams.set("q", teamName);
     url.searchParams.set("translate", "1");
     url.searchParams.set("lang", "ja");
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { next: { revalidate: BOARD_REVALIDATE_SECONDS } });
     if (!res.ok) throw new Error(`news HTTP ${res.status}`);
     const json = await res.json();
     return Array.isArray(json?.items) ? json.items : [];
@@ -191,7 +194,7 @@ async function fetchVideos(teamName: string, baseUrl: string): Promise<VideoItem
   try {
     const url = new URL("/api/videos", baseUrl);
     url.searchParams.set("q", `${teamName} official`);
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), { next: { revalidate: BOARD_REVALIDATE_SECONDS } });
     if (!res.ok) throw new Error(`videos HTTP ${res.status}`);
     const json = await res.json();
     return Array.isArray(json?.items) ? json.items : [];

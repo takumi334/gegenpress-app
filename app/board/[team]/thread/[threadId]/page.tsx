@@ -5,6 +5,8 @@ import { getTeamNameFromFD } from "@lib/team-resolver";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 import type { Metadata } from "next";
 
+export const revalidate = 30;
+
 /** Next.js App Router: params / searchParams は Promise（15+） */
 export type ThreadPageSearchParams = {
   error?: string;

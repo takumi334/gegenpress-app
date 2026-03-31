@@ -41,13 +41,13 @@ export default function EditTacticsBoardPage({ params }: PageProps) {
     setLoading(true);
     setError(null);
     Promise.all([
-      fetch(`/api/threads/${resolved.threadId}/tactics-boards/${resolved.id}`, { cache: "no-store" }).then(
+      fetch(`/api/threads/${resolved.threadId}/tactics-boards/${resolved.id}`).then(
         (r) => {
           if (!r.ok) throw new Error(t("tactics.fetchFailed"));
           return r.json();
         }
       ),
-      fetch(`/api/threads/${resolved.threadId}`, { cache: "no-store" })
+      fetch(`/api/threads/${resolved.threadId}`)
         .then((r) => r.json())
         .then((data: { threadType?: string | null }) => isTacticsBoardCreateAllowed(data.threadType))
         .catch(() => false),

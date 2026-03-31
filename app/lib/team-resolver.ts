@@ -61,9 +61,7 @@ export async function getTeamNameFromFD(slugOrId: string): Promise<string> {
   if (!id || Number.isNaN(id)) return slugOrId; // 取得できない場合はそのまま返す
 
   try {
-    const data = await fdFetch<{ name: string }>({
-      path: `/teams/${id}`,
-    });
+    const data = await fdFetch<{ name: string }>(`/teams/${id}`, { next: { revalidate: 60 } });
     return data.name;
   } catch (err) {
     console.error("getTeamNameFromFD error:", err);

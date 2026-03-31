@@ -42,7 +42,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     if (!resolved?.threadId || !resolved?.id) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`/api/threads/${resolved.threadId}/tactics-boards/${resolved.id}`, { cache: "no-store" })
+    fetch(`/api/threads/${resolved.threadId}/tactics-boards/${resolved.id}`)
       .then((r) => {
         if (!r.ok) throw new Error(t("tactics.fetchFailed"));
         return r.json();
@@ -67,7 +67,7 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
       return;
     }
     let cancelled = false;
-    fetch(`/api/team/${resolved.team}`, { cache: "no-store" })
+    fetch(`/api/team/${resolved.team}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("team fetch"))))
       .then((j: { name?: string }) => {
         if (!cancelled && typeof j?.name === "string") setXPostClubName(j.name);
@@ -97,7 +97,6 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
         const res = await fetch("/api/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          cache: "no-store",
           body: JSON.stringify({ q: [textToTranslate], target: targetLang }),
         });
         if (!res.ok) throw new Error("translate failed");
@@ -137,7 +136,6 @@ export default function TacticsBoardDetailPage({ params }: PageProps) {
     fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
       body: JSON.stringify({ q: uniqueNames, target: targetLang }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("translate failed"))))

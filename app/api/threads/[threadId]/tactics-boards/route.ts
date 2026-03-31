@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 import {
   isTacticsBoardCreateAllowed,
   threadTypeToTacticsBoardMode,
@@ -26,7 +27,7 @@ export async function POST(
   const { threadId: threadIdParam } = await context.params;
   const threadId = Number(threadIdParam);
   if (!Number.isInteger(threadId) || threadId <= 0) {
-    return NextResponse.json({ error: "Invalid threadId" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid threadId" }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const thread = await withPrismaRetry("POST tactics-boards thread.findUnique", () =>
@@ -36,12 +37,12 @@ export async function POST(
     })
   );
   if (!thread) {
-    return NextResponse.json({ error: "Thread not found" }, { status: 404 });
+    return NextResponse.json({ error: "Thread not found" }, { status: 404, headers: NO_STORE_HEADERS });
   }
   if (!isTacticsBoardCreateAllowed(thread.threadType)) {
     return NextResponse.json(
       { error: "このスレッドでは戦術ボードの新規投稿はできません。" },
-      { status: 403 }
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -49,7 +50,7 @@ export async function POST(
   if (!mode) {
     return NextResponse.json(
       { error: "Invalid thread type for tactics board" },
-      { status: 400 }
+      { status: 400, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -69,7 +70,7 @@ export async function POST(
     containsBannedWordsInFields([titleS, bodyS]) ||
     (data != null && containsBannedWords(JSON.stringify(data)))
   ) {
-    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const board = await withPrismaRetry("POST tactics-boards create", () =>
@@ -84,12 +85,15 @@ export async function POST(
     })
   );
 
-  return NextResponse.json({
-    id: board.id,
-    threadId: board.threadId,
-    mode: board.mode,
-    title: board.title,
-    body: board.body,
-    createdAt: board.createdAt,
-  });
+  return NextResponse.json(
+    {
+      id: board.id,
+      threadId: board.threadId,
+      mode: board.mode,
+      title: board.title,
+      body: board.body,
+      createdAt: board.createdAt,
+    },
+    { headers: NO_STORE_HEADERS }
+  );
 }

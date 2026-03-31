@@ -81,8 +81,7 @@ export default function ThreadList({
     (async () => {
       try {
         const res = await fetch(
-          `/api/threads?teamId=${encodeURIComponent(teamId)}&anonId=${encodeURIComponent(anon)}`,
-          { cache: "no-store" }
+          `/api/threads?teamId=${encodeURIComponent(teamId)}&anonId=${encodeURIComponent(anon)}`
         );
         if (!res.ok || cancelled) return;
         const j = await res.json();
@@ -126,9 +125,7 @@ export default function ThreadList({
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(`/api/posts/${encodeURIComponent(rid)}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/posts/${encodeURIComponent(rid)}`);
         if (!res.ok || cancelled) return;
         const j = await res.json().catch(() => ({}));
         const threadId = j?.threadId;
@@ -186,9 +183,7 @@ export default function ThreadList({
         const q = anon
           ? `teamId=${encodeURIComponent(teamId)}&anonId=${encodeURIComponent(anon)}`
           : `teamId=${encodeURIComponent(teamId)}`;
-        const res = await fetch(`/api/threads?${q}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/threads?${q}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const j = await res.json();
 
@@ -257,7 +252,6 @@ export default function ThreadList({
           const res = await fetch("/api/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            cache: "no-store",
             body: JSON.stringify({ q: list, target: targetLang }),
           });
           const data = await res.json().catch(() => ({}));

@@ -31,8 +31,7 @@ export async function getTeamNameFromFD(param: string): Promise<string> {
 
   try {
     const data = await fdFetch<{ id: number; name?: string }>(`/teams/${id}`, {
-      // 30分キャッシュ（適宜調整）
-      next: { revalidate: 1800 },
+      cache: "no-store",
     });
     return data?.name ?? param;
   } catch {

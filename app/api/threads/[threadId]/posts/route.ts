@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
 import { translateBatch } from "@/lib/translate";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 import {
   containsBannedWords,
   containsBannedWordsInFields,
@@ -25,7 +26,7 @@ export async function POST(
     const { threadId: threadIdParam } = await context.params;
     const threadId = threadIdParam?.trim();
     if (!threadId) {
-      return NextResponse.json({ error: "threadId is required" }, { status: 400 });
+      return NextResponse.json({ error: "threadId is required" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     let payload: {
@@ -37,7 +38,7 @@ export async function POST(
     try {
       payload = await req.json();
     } catch {
-      return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
+      return NextResponse.json({ error: "invalid JSON" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const originalBody = (payload?.body ?? "").toString().trim().slice(0, 5000);
@@ -50,14 +51,14 @@ export async function POST(
     const targetLang = (payload?.targetLang ?? DEFAULT_TARGET_LANG).trim() || DEFAULT_TARGET_LANG;
 
     if (!originalBody) {
-      return NextResponse.json({ error: "本文が空です" }, { status: 400 });
+      return NextResponse.json({ error: "本文が空です" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     if (
       containsBannedWordsInFields([originalBody, authorName]) ||
       (tactic !== undefined && containsBannedWords(JSON.stringify(tactic)))
     ) {
-      return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+      return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     let finalTranslatedBody: string | null = null;
@@ -72,7 +73,7 @@ export async function POST(
 
     const idNum = Number(threadId);
     if (isNaN(idNum) || idNum <= 0) {
-      return NextResponse.json({ error: "invalid threadId" }, { status: 400 });
+      return NextResponse.json({ error: "invalid threadId" }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const exists = await withPrismaRetry("POST /api/threads/[threadId]/posts thread.findUnique", () =>
@@ -85,7 +86,7 @@ export async function POST(
     if (!exists) {
       return NextResponse.json(
         { error: "thread not found" },
-        { status: 404 }
+        { status: 404, headers: NO_STORE_HEADERS }
       );
     }
 
@@ -104,13 +105,13 @@ export async function POST(
       })
     );
 
-    return NextResponse.json({ id: post.id }, { status: 201 });
+    return NextResponse.json({ id: post.id }, { status: 201, headers: NO_STORE_HEADERS });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "internal error";
     console.error("❌ 投稿保存エラー:", e);
     return NextResponse.json(
       { error: String(message) },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

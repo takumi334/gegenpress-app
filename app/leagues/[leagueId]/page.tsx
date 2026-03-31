@@ -6,6 +6,9 @@ import { COMPETITIONS } from "../../lib/footballData.constant";
 import { fdFetch } from "../../lib/fd";
 import { getSiteUrl } from "../../lib/publicSiteUrl";
 
+export const revalidate = 60 * 30;
+const LEAGUES_REVALIDATE_SECONDS = 60 * 30;
+
 type StandingRow = {
   position?: number;
   team?: { id?: number; name?: string; crest?: string | null };
@@ -57,7 +60,7 @@ function getLeagueName(code: string): string {
 
 async function safeFdFetch<T>(path: string): Promise<T | null> {
   try {
-    return await fdFetch<T>(path);
+    return await fdFetch<T>(path, { next: { revalidate: LEAGUES_REVALIDATE_SECONDS } });
   } catch (error) {
     console.error(`[leagues] failed to fetch ${path}`, error);
     return null;
@@ -67,7 +70,7 @@ async function safeFdFetch<T>(path: string): Promise<T | null> {
 async function safeNewsFetch(q: string): Promise<NewsRes | null> {
   try {
     const url = `${getSiteUrl()}/api/news?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { next: { revalidate: 60 * 10 } });
+    const res = await fetch(url, { next: { revalidate: LEAGUES_REVALIDATE_SECONDS } });
     if (!res.ok) return null;
     return (await res.json()) as NewsRes;
   } catch (error) {
@@ -83,7 +86,7 @@ async function safeApiSportsFetch(path: string): Promise<Record<string, unknown>
   try {
     const res = await fetch(`https://${host}${path}`, {
       headers: { "x-apisports-key": key },
-      next: { revalidate: 60 * 30 },
+      next: { revalidate: LEAGUES_REVALIDATE_SECONDS },
     });
     if (!res.ok) return null;
     return (await res.json()) as Record<string, unknown>;

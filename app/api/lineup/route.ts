@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +13,10 @@ export async function GET() {
         select: { id: true, formation: true, title: true, createdAt: true },
       })
     );
-    return NextResponse.json(list);
+    return NextResponse.json(list, { headers: NO_STORE_HEADERS });
   } catch (e) {
     console.error("[GET /api/lineup]", e);
-    return NextResponse.json({ error: "Failed to list lineups" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to list lineups" }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
 
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as SaveBody;
     const { formation, title, threadId, assignments } = body;
     if (!formation || typeof formation !== "string") {
-      return NextResponse.json({ error: "formation required" }, { status: 400 });
+      return NextResponse.json({ error: "formation required" }, { status: 400, headers: NO_STORE_HEADERS });
     }
     const entries = Object.entries(assignments ?? {}).filter(
       ([, playerId]) => typeof playerId === "number"
@@ -59,17 +60,20 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    return NextResponse.json({
-      id: lineup.id,
-      formation: lineup.formation,
-      title: lineup.title,
-      threadId: lineup.threadId,
-    });
+    return NextResponse.json(
+      {
+        id: lineup.id,
+        formation: lineup.formation,
+        title: lineup.title,
+        threadId: lineup.threadId,
+      },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (e) {
     console.error("[POST /api/lineup]", e);
     return NextResponse.json(
       { error: "Failed to save lineup" },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

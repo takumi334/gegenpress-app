@@ -59,8 +59,7 @@ function NewsList({ teamName, lang }: { teamName: string; lang: string }) {
       setLoading(true);
       try {
         const r = await fetch(
-          `/api/news?q=${encodeURIComponent(teamName)}&lang=${encodeURIComponent(lang)}`,
-          { cache: "no-store" }
+          `/api/news?q=${encodeURIComponent(teamName)}&lang=${encodeURIComponent(lang)}`
         );
         const data = await r.json();
         if (!cancel) setItems(data.items ?? []);
@@ -99,7 +98,7 @@ function OfficialVideos({ teamName }: { teamName: string }) {
     (async () => {
       setLoading(true);
       try {
-        const r = await fetch(`/api/videos?q=${encodeURIComponent(teamName + " official")}`, { cache: "no-store" });
+        const r = await fetch(`/api/videos?q=${encodeURIComponent(teamName + " official")}`);
         const data = await r.json();
         if (!cancel) setItems(data.items ?? []);
       } finally {

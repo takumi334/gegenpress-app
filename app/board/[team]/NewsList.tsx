@@ -55,7 +55,7 @@ export default function NewsList({
     url.searchParams.set("lang", lang);
 
     setLoading(true);
-    fetch(url.toString(), { cache: "no-store" })
+    fetch(url.toString())
       .then((r) => r.json())
       .then((json) => !canceled && setItems(Array.isArray(json.items) ? json.items : []))
       .catch(() => !canceled && setItems([]))

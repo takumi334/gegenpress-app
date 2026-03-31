@@ -46,7 +46,7 @@ export default function OfficialVideos({
     (async () => {
       setLoading(true);
       try {
-        const r = await fetch(`/api/videos?q=${encodeURIComponent(teamName + " official")}`, { cache: "no-store" });
+        const r = await fetch(`/api/videos?q=${encodeURIComponent(teamName + " official")}`);
         const data = await r.json();
 
         // 1) API が items を返せたらそのまま使う（link / url どちらでも対応）

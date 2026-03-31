@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 import { isTacticsBoardCreateAllowed } from "@/lib/threadType";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 import {
   containsBannedWords,
   containsBannedWordsInFields,
@@ -24,14 +25,14 @@ export async function PATCH(
   const threadId = Number(threadIdParam);
   const boardId = Number(idParam);
   if (!Number.isInteger(threadId) || !Number.isInteger(boardId)) {
-    return NextResponse.json({ error: "Invalid params" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid params" }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   let body: PatchBody = {};
   try {
     body = (await req.json()) as PatchBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const thread = await withPrismaRetry("PATCH tactics-boards thread", () =>
@@ -41,12 +42,12 @@ export async function PATCH(
     })
   );
   if (!thread) {
-    return NextResponse.json({ error: "Thread not found" }, { status: 404 });
+    return NextResponse.json({ error: "Thread not found" }, { status: 404, headers: NO_STORE_HEADERS });
   }
   if (!isTacticsBoardCreateAllowed(thread.threadType)) {
     return NextResponse.json(
       { error: "このスレッドでは戦術ボードの編集はできません。" },
-      { status: 403 }
+      { status: 403, headers: NO_STORE_HEADERS }
     );
   }
 
@@ -57,7 +58,7 @@ export async function PATCH(
     })
   );
   if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE_HEADERS });
   }
 
   const title =
@@ -72,10 +73,10 @@ export async function PATCH(
     (title !== undefined || bodyText !== undefined) &&
     containsBannedWordsInFields([checkTitle, checkBody])
   ) {
-    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
   }
   if (data !== undefined && containsBannedWords(JSON.stringify(data))) {
-    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400 });
+    return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const updated = await withPrismaRetry("PATCH tactics-boards update", () =>
@@ -90,15 +91,18 @@ export async function PATCH(
     })
   );
 
-  return NextResponse.json({
-    id: updated.id,
-    threadId: updated.threadId,
-    mode: updated.mode,
-    title: updated.title ?? "",
-    body: updated.body ?? "",
-    data: updated.data,
-    createdAt: updated.createdAt,
-  });
+  return NextResponse.json(
+    {
+      id: updated.id,
+      threadId: updated.threadId,
+      mode: updated.mode,
+      title: updated.title ?? "",
+      body: updated.body ?? "",
+      data: updated.data,
+      createdAt: updated.createdAt,
+    },
+    { headers: NO_STORE_HEADERS }
+  );
 }
 
 export async function GET(
@@ -109,7 +113,7 @@ export async function GET(
   const threadId = Number(threadIdParam);
   const boardId = Number(idParam);
   if (!Number.isInteger(threadId) || !Number.isInteger(boardId)) {
-    return NextResponse.json({ error: "Invalid params" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid params" }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const board = await withPrismaRetry("GET tactics-boards/[id] findFirst", () =>
@@ -119,15 +123,18 @@ export async function GET(
     })
   );
   if (!board) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404, headers: NO_STORE_HEADERS });
   }
-  return NextResponse.json({
-    id: board.id,
-    threadId: board.threadId,
-    mode: board.mode,
-    title: board.title ?? "",
-    body: board.body ?? "",
-    data: board.data,
-    createdAt: board.createdAt,
-  });
+  return NextResponse.json(
+    {
+      id: board.id,
+      threadId: board.threadId,
+      mode: board.mode,
+      title: board.title ?? "",
+      body: board.body ?? "",
+      data: board.data,
+      createdAt: board.createdAt,
+    },
+    { headers: NO_STORE_HEADERS }
+  );
 }

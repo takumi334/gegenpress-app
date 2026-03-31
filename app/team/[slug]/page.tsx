@@ -30,7 +30,7 @@ export default async function TeamPage({ params }: { params: { slug: string } })
     // ★ fdFetch は { path, init } で渡す
     team = await fdFetch<Team>({
       path: `/teams/${teamId}`,
-      init: { next: { revalidate: 1800 } }, // 30分キャッシュ
+      init: { cache: "no-store" },
     });
   } catch {
     return notFound();

@@ -2,6 +2,7 @@
 import { NextRequest } from "next/server";
 import { listThreads, createThread, createTacticsBoardForThread } from "@/lib/boardApi";
 import { translateBatch } from "@/lib/translate";
+import { NO_STORE_HEADERS } from "@/lib/noStore";
 import {
   containsBannedWords,
   containsBannedWordsInFields,
@@ -9,6 +10,9 @@ import {
 } from "@/lib/moderation";
 
 export const runtime = "nodejs";
+const BOARD_LIST_CACHE_HEADERS: Record<string, string> = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
+};
 
 const DEFAULT_TARGET_LANG = "en";
 
@@ -17,23 +21,23 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const teamIdStr = searchParams.get("teamId");
     if (!teamIdStr) {
-      return new Response(JSON.stringify({ error: "teamId required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "teamId required" }), { status: 400, headers: BOARD_LIST_CACHE_HEADERS });
     }
     const teamId = Number(teamIdStr);
     if (!Number.isInteger(teamId)) {
-      return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400, headers: BOARD_LIST_CACHE_HEADERS });
     }
     const anonId = searchParams.get("anonId")?.trim();
     const threads = await listThreads(
       teamId,
       anonId ? { anonId } : undefined
     );
-    return Response.json(threads, { status: 200 });
+    return Response.json(threads, { status: 200, headers: BOARD_LIST_CACHE_HEADERS });
   } catch (e: any) {
     console.error("GET /api/threads error:", e);
     return Response.json(
       { ok: false, error: e?.message ?? "Server error", code: e?.code },
-      { status: 500 }
+      { status: 500, headers: BOARD_LIST_CACHE_HEADERS }
     );
   }
 }
@@ -54,10 +58,10 @@ export async function POST(req: NextRequest) {
 
     const t = Number(teamId);
     if (!Number.isInteger(t)) {
-      return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400, headers: NO_STORE_HEADERS });
     }
     if (!title || !title.trim()) {
-      return new Response(JSON.stringify({ error: "title required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "title required" }), { status: 400, headers: NO_STORE_HEADERS });
     }
 
     const displayName =
@@ -80,6 +84,7 @@ export async function POST(req: NextRequest) {
     ) {
       return new Response(JSON.stringify({ error: MODERATION_ERROR_MESSAGE }), {
         status: 400,
+        headers: NO_STORE_HEADERS,
       });
     }
 
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest) {
       await createTacticsBoardForThread(row.id, tacticPayload, { mode: "GENERAL", body: bodyText });
     }
 
-    return Response.json(row, { status: 201 });
+    return Response.json(row, { status: 201, headers: NO_STORE_HEADERS });
   } catch (e: any) {
     console.error("threads POST error", e);
     return Response.json(
@@ -114,7 +119,7 @@ export async function POST(req: NextRequest) {
         code: e?.code,
         message: e?.message,
       },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

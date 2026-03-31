@@ -19,9 +19,7 @@ export default function TeamRadarComposer({ teamId }: { teamId: string }) {
     async function load() {
       try {
         // 57=Arsenal → PL=39 を仮定（必要なら teamId→leagueId のマップ化）
-        const res = await fetch(`/api/standings?league=39&season=2024`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/standings?league=39&season=2024`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
