@@ -28,6 +28,9 @@ const FRAME_COUNT = 4;
 const FRAME_DELAY_MS = 800;
 
 type LineupFrame = {
+  formation: FormationId;
+  assignments: SlotAssignments;
+  slotNames: SlotNames;
   slotPositions: SlotPositions;
   ball: Ball;
   drawPaths: DrawPath[];
@@ -77,6 +80,9 @@ export default function LineupBuilder({
     const basePositions = buildDefaultSlotPositions(safeFormation);
     const baseBall: Ball = { id: "ball", x: 50, y: 50 };
     return Array.from({ length: FRAME_COUNT }).map(() => ({
+      formation: safeFormation,
+      assignments: { ...initialAssignments },
+      slotNames: {},
       slotPositions: { ...basePositions },
       ball: { ...baseBall },
       drawPaths: [],
@@ -170,6 +176,9 @@ export default function LineupBuilder({
 
   const cloneFrame = useCallback((frame: LineupFrame): LineupFrame => {
     return {
+      formation: frame.formation,
+      assignments: { ...frame.assignments },
+      slotNames: { ...frame.slotNames },
       slotPositions: { ...frame.slotPositions },
       ball: { ...frame.ball },
       drawPaths: frame.drawPaths.map((p) => ({
@@ -184,6 +193,9 @@ export default function LineupBuilder({
     (index: number, sourceFrames?: LineupFrame[]) => {
       const fr = (sourceFrames ?? frames)[index];
       if (!fr) return;
+      setFormation(fr.formation);
+      setAssignments({ ...fr.assignments });
+      setSlotNames({ ...fr.slotNames });
       setSlotPositions(fr.slotPositions);
       setBall({ ...fr.ball });
       setDrawPaths(fr.drawPaths.map((p) => ({ id: p.id, points: p.points.map((pt) => ({ ...pt })) })));
@@ -194,22 +206,10 @@ export default function LineupBuilder({
   const handleSelectFrame = useCallback(
     (index: number) => {
       setIsPlaying(false);
-      let nextFrames = frames;
-      const target = frames[index];
-      if (!target?.saved && index !== currentFrame) {
-        const source = frames[currentFrame];
-        if (source) {
-          const cloned = cloneFrame(source);
-          cloned.saved = false;
-          nextFrames = [...frames];
-          nextFrames[index] = cloned;
-          setFrames(nextFrames);
-        }
-      }
       setCurrentFrame(index);
-      applyFrame(index, nextFrames);
+      applyFrame(index);
     },
-    [applyFrame, frames, currentFrame, cloneFrame]
+    [applyFrame]
   );
 
   const handlePlayToggle = useCallback(() => {
@@ -219,19 +219,21 @@ export default function LineupBuilder({
   const handleSaveFrame = useCallback(() => {
     setFrames((prev) => {
       const copy = [...prev];
-      const current = copy[currentFrame];
       copy[currentFrame] = {
+        formation,
+        assignments: { ...assignments },
+        slotNames: { ...slotNames },
         slotPositions: { ...slotPositions },
         ball: { ...ball },
         drawPaths: drawPaths.map((p) => ({
           id: p.id,
           points: p.points.map((pt) => ({ ...pt })),
         })),
-        saved: current ? true : true,
+        saved: true,
       };
       return copy;
     });
-  }, [currentFrame, slotPositions, ball, drawPaths]);
+  }, [currentFrame, formation, assignments, slotNames, slotPositions, ball, drawPaths]);
 
   const handleSendToBoard = useCallback(async () => {
     try {
