@@ -42,7 +42,7 @@ function buildDefaultSlotPositions(formationId: FormationId): SlotPositions {
 const PENDING_TACTIC_REPLY_KEY = "pendingTacticReply";
 
 type LineupBuilderProps = {
-  players: PlayerLite[];
+  players?: PlayerLite[];
   initialFormation?: FormationId;
   initialAssignments?: SlotAssignments;
   onSave?: (formation: FormationId, assignments: SlotAssignments) => void;
@@ -52,7 +52,7 @@ type LineupBuilderProps = {
 };
 
 export default function LineupBuilder({
-  players,
+  players = [],
   initialFormation = "4-3-3",
   initialAssignments = {},
   onSave,
@@ -60,17 +60,21 @@ export default function LineupBuilder({
   returnTo,
 }: LineupBuilderProps) {
   const router = useRouter();
-  const [formation, setFormation] = useState<FormationId>(initialFormation);
+  const safeFormation: FormationId =
+    initialFormation === "4-4-2" || initialFormation === "3-5-2" || initialFormation === "4-3-3"
+      ? initialFormation
+      : "4-3-3";
+  const [formation, setFormation] = useState<FormationId>(safeFormation);
   const [assignments, setAssignments] = useState<SlotAssignments>(initialAssignments);
   const [slotPositions, setSlotPositions] = useState<SlotPositions>(() =>
-    buildDefaultSlotPositions(initialFormation)
+    buildDefaultSlotPositions(safeFormation)
   );
   const [ball, setBall] = useState<Ball>({ id: "ball", x: 50, y: 50 });
   const [pitchMode, setPitchMode] = useState<PitchMode>("cursor");
   const [drawPaths, setDrawPaths] = useState<DrawPath[]>([]);
   const [slotNames, setSlotNames] = useState<SlotNames>({});
   const [frames, setFrames] = useState<LineupFrame[]>(() => {
-    const basePositions = buildDefaultSlotPositions(initialFormation);
+    const basePositions = buildDefaultSlotPositions(safeFormation);
     const baseBall: Ball = { id: "ball", x: 50, y: 50 };
     return Array.from({ length: FRAME_COUNT }).map(() => ({
       slotPositions: { ...basePositions },
