@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPredictJsonForTeam } from "@/lib/predictCacheService";
 
 export const runtime = "nodejs";
-export const revalidate = 60 * 60 * 24;
 
 const PREDICT_CACHE_HEADERS: Record<string, string> = {
   "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=3600",

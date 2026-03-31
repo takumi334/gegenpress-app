@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 export const revalidate = 30;
 
 /** Next.js App Router: params / searchParams は Promise（15+） */
-export type ThreadPageSearchParams = {
+type ThreadPageSearchParams = {
   error?: string;
   tactics_saved?: string;
   highlightReply?: string;

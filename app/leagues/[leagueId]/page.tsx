@@ -6,7 +6,7 @@ import { COMPETITIONS } from "../../lib/footballData.constant";
 import { fdFetch } from "../../lib/fd";
 import { getSiteUrl } from "../../lib/publicSiteUrl";
 
-export const revalidate = 60 * 30;
+export const revalidate = 1800;
 const LEAGUES_REVALIDATE_SECONDS = 60 * 30;
 
 type StandingRow = {

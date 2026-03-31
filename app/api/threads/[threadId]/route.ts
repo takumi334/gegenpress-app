@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
 
 export const runtime = "nodejs";
-export const revalidate = 30;
 const THREAD_DETAIL_CACHE_HEADERS: Record<string, string> = {
   "Cache-Control": "public, s-maxage=30, stale-while-revalidate=30",
 };

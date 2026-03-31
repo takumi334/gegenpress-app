@@ -5,7 +5,6 @@ const BOARD_TEAM_CACHE_HEADERS: Record<string, string> = {
 };
 
 export const runtime = "nodejs";
-export const revalidate = 60;
 
 /** 掲示板の team パラメータ（数字 ID）から FD 上のクラブ表示名を返す */
 export async function GET(
