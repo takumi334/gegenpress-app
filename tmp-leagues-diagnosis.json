@@ -1,0 +1,204 @@
+[
+  {
+    "code": "PL",
+    "competitionId": 2021,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 200,
+      "fixtures": 200,
+      "teams": 200
+    },
+    "fdSummary": {
+      "standings": {
+        "tableLen": 20,
+        "visibleLen": 20,
+        "hasCompetition": true,
+        "shapeOk": true
+      },
+      "fixtures": {
+        "len": 70,
+        "visibleLen": 70,
+        "shapeOk": true
+      },
+      "teams": {
+        "len": 20,
+        "visibleLen": 20,
+        "shapeOk": true
+      }
+    },
+    "usedFallbackApiSports": false,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "PD",
+    "competitionId": 2014,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 200,
+      "fixtures": 200,
+      "teams": 200
+    },
+    "fdSummary": {
+      "standings": {
+        "tableLen": 20,
+        "visibleLen": 20,
+        "hasCompetition": true,
+        "shapeOk": true
+      },
+      "fixtures": {
+        "len": 90,
+        "visibleLen": 90,
+        "shapeOk": true
+      },
+      "teams": {
+        "len": 20,
+        "visibleLen": 20,
+        "shapeOk": true
+      }
+    },
+    "usedFallbackApiSports": false,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "SA",
+    "competitionId": 2019,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 200,
+      "fixtures": 200,
+      "teams": 200
+    },
+    "fdSummary": {
+      "standings": {
+        "tableLen": 20,
+        "visibleLen": 20,
+        "hasCompetition": true,
+        "shapeOk": true
+      },
+      "fixtures": {
+        "len": 80,
+        "visibleLen": 80,
+        "shapeOk": true
+      },
+      "teams": {
+        "len": 20,
+        "visibleLen": 20,
+        "shapeOk": true
+      }
+    },
+    "usedFallbackApiSports": false,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "BL1",
+    "competitionId": 2002,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 200,
+      "fixtures": 200,
+      "teams": 429
+    },
+    "fdSummary": {
+      "standings": {
+        "tableLen": 18,
+        "visibleLen": 18,
+        "hasCompetition": true,
+        "shapeOk": true
+      },
+      "fixtures": {
+        "len": 63,
+        "visibleLen": 63,
+        "shapeOk": true
+      },
+      "teams": null
+    },
+    "usedFallbackApiSports": false,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "FL1",
+    "competitionId": 2015,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 429,
+      "fixtures": 429,
+      "teams": 429
+    },
+    "fdSummary": {
+      "standings": null,
+      "fixtures": null,
+      "teams": null
+    },
+    "usedFallbackApiSports": true,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "DED",
+    "competitionId": 2003,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 429,
+      "fixtures": 429,
+      "teams": 429
+    },
+    "fdSummary": {
+      "standings": null,
+      "fixtures": null,
+      "teams": null
+    },
+    "usedFallbackApiSports": true,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  },
+  {
+    "code": "PPL",
+    "competitionId": 2017,
+    "fdSeason": "2024",
+    "apiSportsSeason": "2024",
+    "fdStatus": {
+      "standings": 429,
+      "fixtures": 429,
+      "teams": 429
+    },
+    "fdSummary": {
+      "standings": null,
+      "fixtures": null,
+      "teams": null
+    },
+    "usedFallbackApiSports": true,
+    "apiSports": null,
+    "news": {
+      "len": 2,
+      "ok": true
+    }
+  }
+]

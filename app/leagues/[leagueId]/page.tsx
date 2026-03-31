@@ -2,53 +2,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LEAGUES, type LeagueId } from "../../lib/leagues";
-import { COMPETITIONS } from "../../lib/footballData.constant";
-import { fdFetch } from "../../lib/fd";
 import { getSiteUrl } from "../../lib/publicSiteUrl";
+import { getLeagueSnapshot } from "@/lib/server/leagueSnapshotCache";
 
 export const revalidate = 1800;
-const LEAGUES_REVALIDATE_SECONDS = 60 * 30;
-
-type StandingRow = {
-  position?: number;
-  team?: { id?: number; name?: string; crest?: string | null };
-  points?: number;
-  goalDifference?: number;
-};
-
-type StandingsRes = {
-  competition?: { id?: number; name?: string; code?: LeagueId };
-  standings?: Array<{ type?: "TOTAL"; table?: StandingRow[] }>;
-};
-
-type FixturesRes = {
-  matches?: Array<{
-    id?: number;
-    utcDate?: string;
-    homeTeam?: { name?: string };
-    awayTeam?: { name?: string };
-    status?: string;
-  }>;
-};
-
-type TeamsRes = {
-  teams?: Array<{ id?: number; name?: string }>;
-};
-
-type NewsRes = {
-  items?: Array<{ title?: string; link?: string }>;
-};
-
-const APISPORTS_SEASON = "2024";
-const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
-  PL: "39",
-  PD: "140",
-  SA: "135",
-  BL1: "78",
-  FL1: "61",
-  DED: "88",
-  PPL: "94",
-};
 
 function isSupportedLeague(code: string): code is LeagueId {
   return LEAGUES.some((l) => l.id === code);
@@ -56,119 +13,6 @@ function isSupportedLeague(code: string): code is LeagueId {
 
 function getLeagueName(code: string): string {
   return LEAGUES.find((l) => l.id === code)?.name ?? "League";
-}
-
-async function safeFdFetch<T>(path: string): Promise<T | null> {
-  try {
-    return await fdFetch<T>(path, { next: { revalidate: LEAGUES_REVALIDATE_SECONDS } });
-  } catch (error) {
-    console.error(`[leagues] failed to fetch ${path}`, error);
-    return null;
-  }
-}
-
-async function safeNewsFetch(q: string): Promise<NewsRes | null> {
-  try {
-    const url = `${getSiteUrl()}/api/news?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { next: { revalidate: LEAGUES_REVALIDATE_SECONDS } });
-    if (!res.ok) return null;
-    return (await res.json()) as NewsRes;
-  } catch (error) {
-    console.error("[leagues] failed to fetch news", error);
-    return null;
-  }
-}
-
-async function safeApiSportsFetch(path: string): Promise<Record<string, unknown> | null> {
-  const host = process.env.APISPORTS_HOST ?? "";
-  const key = process.env.APISPORTS_KEY ?? "";
-  if (!host || !key) return null;
-  try {
-    const res = await fetch(`https://${host}${path}`, {
-      headers: { "x-apisports-key": key },
-      next: { revalidate: LEAGUES_REVALIDATE_SECONDS },
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as Record<string, unknown>;
-  } catch (error) {
-    console.error(`[leagues] apisports failed ${path}`, error);
-    return null;
-  }
-}
-
-type LeagueDataBundle = {
-  standings: StandingRow[];
-  fixtures: FixturesRes["matches"];
-  teams: TeamsRes["teams"];
-  competitionName: string;
-};
-
-async function fetchLeagueBundle(leagueCode: LeagueId, competitionId: number, leagueName: string): Promise<LeagueDataBundle> {
-  const [standingsFd, fixturesFd, teamsFd] = await Promise.all([
-    safeFdFetch<StandingsRes>(`/competitions/${competitionId}/standings`),
-    safeFdFetch<FixturesRes>(`/competitions/${competitionId}/matches?status=SCHEDULED&limit=8`),
-    safeFdFetch<TeamsRes>(`/competitions/${competitionId}/teams`),
-  ]);
-
-  const tableFd = Array.isArray(standingsFd?.standings)
-    ? (standingsFd.standings.find((s) => s?.type === "TOTAL")?.table ?? [])
-    : [];
-  const fixturesFromFd = Array.isArray(fixturesFd?.matches) ? fixturesFd.matches : [];
-  const teamsFromFd = Array.isArray(teamsFd?.teams) ? teamsFd.teams : [];
-  const hasFdData = tableFd.length > 0 || fixturesFromFd.length > 0 || teamsFromFd.length > 0;
-  if (hasFdData) {
-    return {
-      standings: tableFd,
-      fixtures: fixturesFromFd,
-      teams: teamsFromFd,
-      competitionName: standingsFd?.competition?.name || leagueName,
-    };
-  }
-
-  const apiSportsLeague = APISPORTS_LEAGUE_ID[leagueCode];
-  const [standingsApi, fixturesApi, teamsApi] = await Promise.all([
-    safeApiSportsFetch(`/standings?league=${apiSportsLeague}&season=${APISPORTS_SEASON}`),
-    safeApiSportsFetch(`/fixtures?league=${apiSportsLeague}&season=${APISPORTS_SEASON}&next=8`),
-    safeApiSportsFetch(`/teams?league=${apiSportsLeague}&season=${APISPORTS_SEASON}`),
-  ]);
-
-  const standingsResponse = Array.isArray(standingsApi?.response) ? standingsApi.response : [];
-  const apiTable = Array.isArray(standingsResponse[0]?.league?.standings?.[0])
-    ? standingsResponse[0].league.standings[0]
-    : [];
-
-  const table: StandingRow[] = apiTable.map((row: Record<string, unknown>) => ({
-    position: Number(row?.rank ?? 0) || undefined,
-    team: {
-      id: Number((row?.team as Record<string, unknown> | undefined)?.id ?? 0) || undefined,
-      name: String((row?.team as Record<string, unknown> | undefined)?.name ?? ""),
-      crest: null,
-    },
-    points: Number(row?.points ?? 0) || undefined,
-    goalDifference: Number(row?.goalsDiff ?? 0) || undefined,
-  }));
-
-  const fixturesResponse = Array.isArray(fixturesApi?.response) ? fixturesApi.response : [];
-  const fixtures: FixturesRes["matches"] = fixturesResponse.map((m: Record<string, unknown>) => ({
-    id: Number((m?.fixture as Record<string, unknown> | undefined)?.id ?? 0) || undefined,
-    utcDate: String((m?.fixture as Record<string, unknown> | undefined)?.date ?? ""),
-    homeTeam: { name: String((m?.teams as Record<string, Record<string, unknown>> | undefined)?.home?.name ?? "") },
-    awayTeam: { name: String((m?.teams as Record<string, Record<string, unknown>> | undefined)?.away?.name ?? "") },
-    status: String((m?.fixture as Record<string, Record<string, unknown>> | undefined)?.status?.short ?? "SCHEDULED"),
-  }));
-
-  const teamsResponse = Array.isArray(teamsApi?.response) ? teamsApi.response : [];
-  const teams: TeamsRes["teams"] = teamsResponse.map((t: Record<string, unknown>) => ({
-    id: Number((t?.team as Record<string, unknown> | undefined)?.id ?? 0) || undefined,
-    name: String((t?.team as Record<string, unknown> | undefined)?.name ?? ""),
-  }));
-
-  return {
-    standings: table,
-    fixtures,
-    teams,
-    competitionName: String(standingsResponse[0]?.league?.name ?? leagueName),
-  };
 }
 
 export async function generateMetadata({
@@ -207,10 +51,9 @@ export default async function LeaguePage({
   const { leagueId } = await params;
   const leagueCode = (leagueId ?? "").toUpperCase();
   const supported = isSupportedLeague(leagueCode);
-  const competitionId = supported ? COMPETITIONS[leagueCode] : undefined;
   const leagueName = supported ? getLeagueName(leagueCode) : "League";
 
-  if (!supported || typeof competitionId !== "number") {
+  if (!supported) {
     return (
       <main className="p-6 space-y-4">
         <h1 className="text-3xl font-bold">League data not available</h1>
@@ -221,15 +64,12 @@ export default async function LeaguePage({
     );
   }
 
-  const [bundle, newsData] = await Promise.all([
-    fetchLeagueBundle(leagueCode, competitionId, leagueName),
-    safeNewsFetch(leagueName),
-  ]);
+  const bundle = await getLeagueSnapshot(leagueCode);
 
   const table = Array.isArray(bundle.standings) ? bundle.standings : [];
   const fixtures = Array.isArray(bundle.fixtures) ? bundle.fixtures : [];
   const teams = Array.isArray(bundle.teams) ? bundle.teams : [];
-  const news = Array.isArray(newsData?.items) ? newsData.items : [];
+  const news = Array.isArray(bundle.news) ? bundle.news : [];
   const title = bundle.competitionName || leagueName;
 
   return (
