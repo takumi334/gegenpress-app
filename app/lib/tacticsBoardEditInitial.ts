@@ -16,9 +16,12 @@ export type BuilderInitialFromBoard = {
   formation: FormationId;
   assignments: TacticsSlotAssignments;
   initialAnimationFrames: {
+    formation?: FormationId;
+    assignments?: TacticsSlotAssignments;
     slotPositions: SlotPositions;
     ballPosition: BallPosition;
     strokes: DrawingStroke[];
+    timestamp?: number;
   }[];
   initialCurrentFrame: number;
 };
@@ -60,9 +63,12 @@ export function tacticsBoardDataToBuilderInitial(
     const initialAnimationFrames = [0, 1, 2, 3].map((idx) => {
       const fr = anim[idx] ?? anim[anim.length - 1];
       return {
+        formation: (fr.formation ?? formation) as FormationId,
+        assignments: (fr.assignments as TacticsSlotAssignments | undefined) ?? assignments,
         slotPositions: { ...fr.slotPositions },
         ballPosition: fr.ballPosition ?? { x: 50, y: 50 },
         strokes: cloneStrokes(fr.strokes ?? []),
+        timestamp: fr.timestamp,
       };
     });
     const cf = data.currentFrame ?? 0;

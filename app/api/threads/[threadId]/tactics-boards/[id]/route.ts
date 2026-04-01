@@ -79,6 +79,10 @@ export async function PATCH(
     return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
+  if (process.env.NODE_ENV !== "production" && data !== undefined) {
+    console.log("[PATCH tactics-boards] dataPayload", data);
+  }
+
   const updated = await withPrismaRetry("PATCH tactics-boards update", () =>
     prisma.tacticsBoard.update({
       where: { id: boardId },

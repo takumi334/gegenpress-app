@@ -24,9 +24,12 @@ export type TacticsBoardEditorProps = {
   initialFormation?: FormationId;
   initialAssignments?: TacticsSlotAssignments;
   initialAnimationFrames?: {
+    formation?: FormationId;
+    assignments?: TacticsSlotAssignments;
     slotPositions: SlotPositions;
     ballPosition: BallPosition;
     strokes: DrawingStroke[];
+    timestamp?: number;
   }[];
   initialCurrentFrame?: number;
 };
@@ -80,14 +83,21 @@ export function TacticsBoardEditor({
         formation: string;
         placements: ReturnType<typeof assignmentsToPlacements>;
         drawingData?: { strokes: typeof strokes };
-        animationFrames?: { slotPositions: typeof slotPositions; ballPosition: { x: number; y: number } | null; strokes: typeof strokes }[];
+        animationFrames?: {
+          formation?: FormationId;
+          assignments?: TacticsSlotAssignments;
+          slotPositions: typeof slotPositions;
+          ballPosition: { x: number; y: number } | null;
+          strokes: typeof strokes;
+          timestamp?: number;
+        }[];
         currentFrame?: number;
       } = { formation, placements };
       if (strokes.length > 0) {
         dataPayload.drawingData = { strokes };
       }
       if (frames && frames.length > 0) {
-        dataPayload.animationFrames = frames as any;
+        dataPayload.animationFrames = frames;
         dataPayload.currentFrame = currentFrame;
       }
       const anyFrameStrokes = frames?.some((f) => (f.strokes?.length ?? 0) > 0) ?? false;

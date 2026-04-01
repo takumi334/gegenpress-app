@@ -28,17 +28,32 @@ export type LineupBuilderData = {
   slotPositions: SlotPositions;
   strokes: DrawingStroke[];
   frames?: {
+    formation: FormationId;
+    assignments: TacticsSlotAssignments;
     slotPositions: SlotPositions;
     ballPosition: BallPosition;
     strokes: DrawingStroke[];
+    timestamp?: number;
   }[];
   currentFrame?: number;
 };
 
 type BuilderFrame = {
+  formation: FormationId;
+  assignments: TacticsSlotAssignments;
   slotPositions: SlotPositions;
   ballPosition: BallPosition;
   strokes: DrawingStroke[];
+  timestamp?: number;
+};
+
+type InitialBuilderFrame = {
+  formation?: FormationId;
+  assignments?: TacticsSlotAssignments;
+  slotPositions: SlotPositions;
+  ballPosition: BallPosition;
+  strokes: DrawingStroke[];
+  timestamp?: number;
 };
 
 type TacticsLineupBuilderProps = {
@@ -48,19 +63,22 @@ type TacticsLineupBuilderProps = {
   initialSlotPositions?: SlotPositions;
   initialStrokes?: DrawingStroke[];
   /** 4フレーム分を渡すとアニメ・線を復元（編集画面用） */
-  initialAnimationFrames?: BuilderFrame[];
+  initialAnimationFrames?: InitialBuilderFrame[];
   initialCurrentFrame?: number;
   onChange?: (data: LineupBuilderData) => void;
 };
 
 function cloneFrame(f: BuilderFrame): BuilderFrame {
   return {
+    formation: f.formation,
+    assignments: { ...f.assignments },
     slotPositions: { ...f.slotPositions },
     ballPosition: f.ballPosition ? { ...f.ballPosition } : null,
     strokes: f.strokes.map((s) => ({
       ...s,
       points: s.points.map((p) => ({ ...p })),
     })),
+    timestamp: f.timestamp,
   };
 }
 
@@ -82,14 +100,24 @@ export default function TacticsLineupBuilder({
       const src = initialAnimationFrames;
       return [0, 1, 2, 3].map((idx) => {
         const f = src[idx] ?? src[src.length - 1];
-        return cloneFrame(f);
+        return cloneFrame({
+          formation: f.formation ?? initialFormation,
+          assignments: f.assignments ?? initialAssignments,
+          slotPositions: f.slotPositions,
+          ballPosition: f.ballPosition,
+          strokes: f.strokes,
+          timestamp: f.timestamp,
+        });
       });
     }
     const basePositions = initialSlotPositions;
     return Array.from({ length: 4 }).map((_, idx) => ({
+      formation: initialFormation,
+      assignments: { ...initialAssignments },
       slotPositions: idx === 0 ? { ...basePositions } : { ...basePositions },
       ballPosition: { x: 50, y: 50 },
       strokes: idx === 0 ? [...initialStrokes] : [],
+      timestamp: undefined,
     }));
   });
   const [currentFrame, setCurrentFrame] = useState(() => {
@@ -109,6 +137,20 @@ export default function TacticsLineupBuilder({
     }
     return [...initialStrokes];
   });
+  const [slotPositions, setSlotPositions] = useState<SlotPositions>(() => {
+    if (initialAnimationFrames && initialAnimationFrames.length > 0) {
+      const i = Math.min(Math.max(0, initialCurrentFrame), initialAnimationFrames.length - 1);
+      return { ...(initialAnimationFrames[i]?.slotPositions ?? {}) };
+    }
+    return { ...initialSlotPositions };
+  });
+  const [ballPosition, setBallPosition] = useState<BallPosition>(() => {
+    if (initialAnimationFrames && initialAnimationFrames.length > 0) {
+      const i = Math.min(Math.max(0, initialCurrentFrame), initialAnimationFrames.length - 1);
+      return initialAnimationFrames[i]?.ballPosition ? { ...initialAnimationFrames[i].ballPosition } : null;
+    }
+    return { x: 50, y: 50 };
+  });
   const [mode, setMode] = useState<BoardMode>("placement");
   const [penColor, setPenColor] = useState<PenColor>("red");
   const [drawTool, setDrawTool] = useState<DrawToolKind>("freehand");
@@ -119,10 +161,6 @@ export default function TacticsLineupBuilder({
   const [gifUrl, setGifUrl] = useState<string | null>(null);
 
   const formationDef = useMemo(() => getFormation(formation), [formation]);
-
-  const activeFrame = frames[currentFrame] ?? frames[0];
-  const slotPositions = activeFrame?.slotPositions ?? {};
-  const ballPosition = activeFrame?.ballPosition ?? null;
 
   const notifyChange = useCallback(
     (updates: Partial<LineupBuilderData>) => {
@@ -152,60 +190,37 @@ export default function TacticsLineupBuilder({
         Object.keys(newSlotPositions).forEach((code) => {
           if (!newSlots.includes(code)) delete newSlotPositions[code];
         });
-        setFrames((prevFrames) =>
-          prevFrames.map((f, idx) => ({
-            slotPositions: idx === 0 ? newSlotPositions : { ...newSlotPositions },
-            ballPosition: f.ballPosition,
-            strokes: f.strokes,
-          }))
-        );
+        setSlotPositions(newSlotPositions);
         notifyChange({ formation: id, assignments: next, slotPositions: newSlotPositions });
         return next;
       });
     },
-    [notifyChange]
+    [notifyChange, slotPositions]
   );
 
   const handleSlotPositionChange = useCallback(
     (slotCode: string, x: number, y: number) => {
-      setFrames((prev) => {
-        const copy = [...prev];
-        const frame = copy[currentFrame] ?? { slotPositions: {}, ballPosition: null };
-        const nextSlots = { ...frame.slotPositions, [slotCode]: { x, y } };
-        copy[currentFrame] = { ...frame, slotPositions: nextSlots };
-        notifyChange({ slotPositions: nextSlots, frames: copy, currentFrame });
-        return copy;
+      setSlotPositions((prev) => {
+        const nextSlots = { ...prev, [slotCode]: { x, y } };
+        notifyChange({ slotPositions: nextSlots, currentFrame });
+        return nextSlots;
       });
     },
-    [currentFrame, notifyChange]
+    [notifyChange, currentFrame]
   );
 
   const handleStrokesChange = useCallback(
     (s: DrawingStroke[]) => {
       setStrokes(s);
-      setFrames((prev) => {
-        const copy = [...prev];
-        const frame = copy[currentFrame] ?? { slotPositions: {}, ballPosition: null, strokes: [] };
-        const nextFrame = { ...frame, strokes: s };
-        copy[currentFrame] = nextFrame;
-        notifyChange({ strokes: s, frames: copy, currentFrame });
-        return copy;
-      });
+      notifyChange({ strokes: s, currentFrame });
     },
-    [currentFrame, notifyChange]
+    [notifyChange, currentFrame]
   );
 
   const handleClearAll = useCallback(() => {
     setStrokes([]);
-    setFrames((prev) => {
-      const copy = [...prev];
-      const frame = copy[currentFrame] ?? { slotPositions: {}, ballPosition: null, strokes: [] };
-      const nextFrame = { ...frame, strokes: [] };
-      copy[currentFrame] = nextFrame;
-      notifyChange({ strokes: [], frames: copy, currentFrame });
-      return copy;
-    });
-  }, [currentFrame, notifyChange]);
+    notifyChange({ strokes: [], currentFrame });
+  }, [notifyChange, currentFrame]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -273,25 +288,12 @@ export default function TacticsLineupBuilder({
 
   const handleBallPositionChange = useCallback(
     (x: number, y: number) => {
-      setFrames((prev) => {
-        const copy = [...prev];
-        const frame = copy[currentFrame] ?? { slotPositions: {}, ballPosition: null };
-        const nextFrame = { ...frame, ballPosition: { x, y } as BallPosition };
-        copy[currentFrame] = nextFrame;
-        notifyChange({ frames: copy, currentFrame });
-        return copy;
-      });
+      const next = { x, y } as BallPosition;
+      setBallPosition(next);
+      notifyChange({ currentFrame });
     },
-    [currentFrame, notifyChange]
+    [notifyChange, currentFrame]
   );
-
-  useEffect(() => {
-    // 再生・フレーム切り替えに合わせてペン線も同期
-    const active = frames[currentFrame];
-    if (active && active.strokes !== strokes) {
-      setStrokes(active.strokes);
-    }
-  }, [currentFrame, frames, strokes]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -303,6 +305,21 @@ export default function TacticsLineupBuilder({
     return () => clearInterval(interval);
   }, [isPlaying, currentFrame]);
 
+  useEffect(() => {
+    const frame = frames[currentFrame];
+    if (!frame) return;
+    setFormation(frame.formation);
+    setAssignments({ ...frame.assignments });
+    setSlotPositions({ ...frame.slotPositions });
+    setBallPosition(frame.ballPosition ? { ...frame.ballPosition } : null);
+    setStrokes(
+      frame.strokes.map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({ ...p })),
+      }))
+    );
+  }, [currentFrame, frames]);
+
   const handlePlayToggle = useCallback(() => {
     setIsPlaying((prev) => !prev);
   }, []);
@@ -313,47 +330,47 @@ export default function TacticsLineupBuilder({
   }, []);
 
   const handleCopyFromPrevious = useCallback(() => {
-    setFrames((prev) => {
-      const copy = [...prev];
-      if (currentFrame === 0) return copy;
-      const prevFrame = copy[currentFrame - 1];
-      if (!prevFrame) return copy;
-      copy[currentFrame] = {
-        slotPositions: { ...prevFrame.slotPositions },
-        ballPosition: prevFrame.ballPosition ? { ...prevFrame.ballPosition } : null,
-        strokes: [...(prevFrame.strokes ?? [])],
-      };
-      const active = copy[currentFrame];
-      setStrokes(active.strokes);
-      notifyChange({
-        slotPositions: active.slotPositions,
-        strokes: active.strokes,
-        frames: copy,
-        currentFrame,
-      });
-      return copy;
+    if (currentFrame === 0) return;
+    const prevFrame = frames[currentFrame - 1];
+    if (!prevFrame) return;
+    setFormation(prevFrame.formation);
+    setAssignments({ ...prevFrame.assignments });
+    setSlotPositions({ ...prevFrame.slotPositions });
+    setBallPosition(prevFrame.ballPosition ? { ...prevFrame.ballPosition } : null);
+    setStrokes(
+      prevFrame.strokes.map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({ ...p })),
+      }))
+    );
+    notifyChange({
+      formation: prevFrame.formation,
+      assignments: { ...prevFrame.assignments },
+      slotPositions: { ...prevFrame.slotPositions },
+      strokes: prevFrame.strokes,
+      currentFrame,
     });
-  }, [currentFrame, notifyChange]);
+  }, [currentFrame, frames, notifyChange]);
 
   const handleSaveCurrentFrame = useCallback(() => {
     setFrames((prev) => {
       const copy = [...prev];
-      const frame = copy[currentFrame] ?? {
-        slotPositions: {} as SlotPositions,
-        ballPosition: null as BallPosition,
-        strokes: [] as DrawingStroke[],
-      };
-      const nextFrame = {
-        ...frame,
-        slotPositions,
-        ballPosition,
-        strokes,
+      const nextFrame: BuilderFrame = {
+        formation,
+        assignments: { ...assignments },
+        slotPositions: { ...slotPositions },
+        ballPosition: ballPosition ? { ...ballPosition } : null,
+        strokes: strokes.map((s) => ({
+          ...s,
+          points: s.points.map((p) => ({ ...p })),
+        })),
+        timestamp: Date.now(),
       };
       copy[currentFrame] = nextFrame;
       notifyChange({ frames: copy, currentFrame });
       return copy;
     });
-  }, [currentFrame, slotPositions, ballPosition, strokes, notifyChange]);
+  }, [currentFrame, formation, assignments, slotPositions, ballPosition, strokes, notifyChange]);
 
   const handleGenerateGif = useCallback(async () => {
     if (!boardRef.current) return;

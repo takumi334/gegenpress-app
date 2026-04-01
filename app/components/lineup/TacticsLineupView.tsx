@@ -123,6 +123,15 @@ export default function TacticsLineupView({
   xPostTeamDisplayName,
   xPostLeagueName,
 }: TacticsLineupViewProps) {
+  type FrameAssignment = { name?: string; translatedName?: string } | null;
+  type ViewerFrame = {
+    formation?: string;
+    assignments?: Record<string, FrameAssignment>;
+    slotNames?: Record<string, string>;
+    slotPositions?: Record<string, { x: number; y: number }>;
+    ballPosition?: { x: number; y: number } | null;
+    strokes?: { color: string; points: { x: number; y: number }[] }[];
+  };
   const [isExportingGif, setIsExportingGif] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [showGifActions, setShowGifActions] = useState(false);
@@ -185,7 +194,7 @@ export default function TacticsLineupView({
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     setShowGifActions(false);
   }, [xPostText]);
-  const { formationDef, bySlot } = useMemo(() => {
+  const { bySlot } = useMemo(() => {
     const f = (data?.formation ?? "4-3-3") as FormationId;
     const def = getFormation(f);
     const placements = data?.placements ?? [];
@@ -235,11 +244,15 @@ export default function TacticsLineupView({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [canUseFrameControls, frames.length]);
 
-  const activeFrame = hasFrames ? frames[frameIndex] : null;
+  const activeFrame = (hasFrames ? frames[frameIndex] : null) as ViewerFrame | null;
+  const activeFormationId = ((hasFrames ? activeFrame?.formation : data?.formation) ?? "4-3-3") as FormationId;
+  const activeFormationDef = useMemo(() => getFormation(activeFormationId), [activeFormationId]);
 
-  const activeStrokes = hasFrames && activeFrame ? activeFrame.strokes : strokes;
+  const activeStrokes = (hasFrames ? activeFrame?.strokes : strokes) ?? [];
+  const activeFrameAssignments = activeFrame?.assignments;
+  const activeFrameSlotNames = activeFrame?.slotNames;
 
-  const hasPlacements = (data?.placements?.length ?? 0) > 0;
+  const hasPlacements = hasFrames ? true : (data?.placements?.length ?? 0) > 0;
   const hasDrawing = activeStrokes.length > 0;
 
   if (!hasPlacements && !hasDrawing) return null;
@@ -280,6 +293,23 @@ export default function TacticsLineupView({
     }
   }, [canExportGif, data, exportFileName, exportNativeBody, exportTranslatedBody, gifFormat, copyTargetPath]);
 
+  useEffect(() => {
+    if (!hasFrames || process.env.NODE_ENV === "production") return;
+    const summary = frames.map((f, idx) => {
+      const ff = f as ViewerFrame;
+      return {
+        frame: idx + 1,
+        formation: ff.formation ?? data?.formation ?? null,
+        assignmentsCount: Object.values(ff.assignments ?? {}).filter(Boolean).length,
+        slotPositionsCount: Object.keys(ff.slotPositions ?? {}).length,
+        hasBall: Boolean(ff.ballPosition),
+        strokesCount: ff.strokes?.length ?? 0,
+      };
+    });
+    // eslint-disable-next-line no-console
+    console.log("[TacticsLineupView] animationFrames summary", summary);
+  }, [hasFrames, frames, data?.formation]);
+
   return (
     <div className="flex flex-col items-center gap-2">
       <div
@@ -293,13 +323,21 @@ export default function TacticsLineupView({
         {hasDrawing && <DrawingOverlay strokes={activeStrokes} />}
 
         {hasPlacements &&
-          formationDef.slots.map((slot) => {
+          activeFormationDef.slots.map((slot) => {
             const info = bySlot.get(slot.code);
-            const name = info?.displayName ?? "";
+            const framePlayer = activeFrameAssignments?.[slot.code];
+            const name = hasFrames
+              ? (
+                  activeFrameSlotNames?.[slot.code] ??
+                  framePlayer?.translatedName ??
+                  framePlayer?.name ??
+                  ""
+                ).trim()
+              : (framePlayer?.translatedName ?? framePlayer?.name ?? info?.displayName ?? "").trim();
             const role = info?.role ?? slot.label;
             const override = activeFrame?.slotPositions?.[slot.code];
-            const x = override?.x ?? info?.x ?? slot.x;
-            const y = override?.y ?? info?.y ?? slot.y;
+            const x = hasFrames ? (override?.x ?? slot.x) : (override?.x ?? info?.x ?? slot.x);
+            const y = hasFrames ? (override?.y ?? slot.y) : (override?.y ?? info?.y ?? slot.y);
             const showTwoLines = name.length > 0;
             return (
               <div

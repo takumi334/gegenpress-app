@@ -106,6 +106,9 @@ export async function POST(req: NextRequest) {
     const row = await createThread(t, title.trim(), bodyText, type, undefined, translatedBody);
 
     if (tacticPayload && Array.isArray(tacticPayload.frames) && tacticPayload.frames.length > 0) {
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[POST /api/threads] tacticPayload before save", tacticPayload);
+      }
       await createTacticsBoardForThread(row.id, tacticPayload, { mode: "GENERAL", body: bodyText });
     }
 

@@ -290,6 +290,27 @@ export default function ThreadView({
                     ?.placements?.length ||
                   (tb.data as { drawingData?: { strokes?: unknown[] } } | null)?.drawingData?.strokes?.length;
                 const lineupData = lineupPayloadToTacticsBoardData((tb.data ?? null) as LineupTacticPayload | null);
+                if (process.env.NODE_ENV !== "production" && lineupData?.animationFrames?.length) {
+                  const activeIdx = Math.min(
+                    Math.max(0, lineupData.currentFrame ?? 0),
+                    lineupData.animationFrames.length - 1
+                  );
+                  const active = lineupData.animationFrames[activeIdx] as {
+                    assignments?: Record<string, unknown>;
+                    slotPositions?: Record<string, unknown>;
+                    strokes?: unknown[];
+                    formation?: string;
+                  };
+                  // eslint-disable-next-line no-console
+                  console.log("[ThreadView] tactics board initial frame", {
+                    boardId: tb.id,
+                    frameIndex: activeIdx,
+                    formation: active?.formation ?? lineupData.formation ?? null,
+                    assignmentsCount: Object.values(active?.assignments ?? {}).filter(Boolean).length,
+                    slotPositionsCount: Object.keys(active?.slotPositions ?? {}).length,
+                    strokesCount: active?.strokes?.length ?? 0,
+                  });
+                }
                 const viewData = lineupData ?? (hasLegacyData ? (tb.data as Parameters<typeof TacticsLineupThumbnail>[0]["data"]) : null);
                 return (
                   <li key={`tb-${tb.id}`} className="border border-white/10 rounded p-3 bg-white/[0.02]">

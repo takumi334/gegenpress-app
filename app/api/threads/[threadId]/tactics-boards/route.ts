@@ -73,6 +73,10 @@ export async function POST(
     return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
+  if (process.env.NODE_ENV !== "production" && data != null) {
+    console.log("[POST tactics-boards] dataPayload", data);
+  }
+
   const board = await withPrismaRetry("POST tactics-boards create", () =>
     prisma.tacticsBoard.create({
       data: {

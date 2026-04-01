@@ -185,13 +185,25 @@ function drawFrame(
   w: number,
   h: number
 ) {
-  const formation = (data?.formation ?? "4-3-3") as FormationId;
+  const frame = data?.animationFrames?.[frameIndex] as
+    | {
+        formation?: string;
+        assignments?: Record<
+          string,
+          { name?: string; translatedName?: string } | null
+        >;
+        slotNames?: Record<string, string>;
+        slotPositions?: Record<string, { x: number; y: number }>;
+        ballPosition?: { x: number; y: number } | null;
+        strokes?: DrawingStroke[];
+      }
+    | undefined;
+  if (!frame) return;
+
+  const formation = ((frame.formation ?? data?.formation) || "4-3-3") as FormationId;
   const formationDef = getFormation(formation);
   const placements = data?.placements ?? [];
   const bySlot = placementsBySlot(placements);
-  const frames = data?.animationFrames ?? [];
-  const frame = frames[frameIndex];
-  if (!frame) return;
 
   drawPitch(ctx, w, h);
 
@@ -208,9 +220,8 @@ function drawFrame(
   ctx.textBaseline = "middle";
   formationDef.slots.forEach((slot) => {
     const override = slotPositions[slot.code];
-    const info = bySlot.get(slot.code);
-    const x = override?.x ?? info?.x ?? slot.x;
-    const y = override?.y ?? info?.y ?? slot.y;
+    const x = override?.x ?? slot.x;
+    const y = override?.y ?? slot.y;
     const px = (x / 100) * w;
     const py = (y / 100) * h;
     ctx.fillStyle = "rgba(30, 41, 59, 0.95)";
@@ -221,13 +232,19 @@ function drawFrame(
     ctx.fill();
     ctx.stroke();
     // ポジションラベル（ST / CM / LB など）円内に小さめの白文字
-    const roleLabel = slot.label ?? slot.code;
+    const info = bySlot.get(slot.code);
+    const roleLabel = info?.role ?? slot.label ?? slot.code;
     ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
     ctx.font = `bold ${labelFontSize}px sans-serif`;
     ctx.textBaseline = "middle";
     ctx.fillText(roleLabel, px, py);
     // 選手名は円の下に表示
-    const displayName = info?.displayName ?? "";
+    const assigned = frame.assignments?.[slot.code];
+    const displayName =
+      frame.slotNames?.[slot.code]?.trim() ||
+      assigned?.translatedName?.trim() ||
+      assigned?.name?.trim() ||
+      "";
     if (displayName) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
       ctx.font = `${nameFontSize}px sans-serif`;

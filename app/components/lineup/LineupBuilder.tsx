@@ -235,11 +235,28 @@ export default function LineupBuilder({
     });
   }, [currentFrame, formation, assignments, slotNames, slotPositions, ball, drawPaths]);
 
+  const buildCurrentDraftFrame = useCallback((): LineupFrame => {
+    return {
+      formation,
+      assignments: { ...assignments },
+      slotNames: { ...slotNames },
+      slotPositions: { ...slotPositions },
+      ball: { ...ball },
+      drawPaths: drawPaths.map((p) => ({
+        id: p.id,
+        points: p.points.map((pt) => ({ ...pt })),
+      })),
+      saved: true,
+    };
+  }, [formation, assignments, slotNames, slotPositions, ball, drawPaths]);
+
   const handleSendToBoard = useCallback(async () => {
     try {
+      const currentDraftFrame = buildCurrentDraftFrame();
+      const effectiveFrames = frames.map((f, idx) => (idx === currentFrame ? currentDraftFrame : cloneFrame(f)));
       let previewImage: string | undefined;
       if (typeof window !== "undefined") {
-        const frame = frames[currentFrame];
+        const frame = effectiveFrames[currentFrame];
         if (frame) {
           const { default: html2canvas } = await import("html2canvas");
 
@@ -382,12 +399,17 @@ export default function LineupBuilder({
       const payload = {
         formation,
         currentFrame,
-        frames,
+        frames: effectiveFrames,
+        animationFrames: effectiveFrames,
         slotNames,
         createdAt: new Date().toISOString(),
         source: "lineup-builder",
         previewImage,
       };
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.log("[LineupBuilder] Send to board payload", payload);
+      }
       if (typeof window !== "undefined") {
         sessionStorage.setItem("pendingTacticPost", JSON.stringify(payload));
       }
@@ -395,23 +417,30 @@ export default function LineupBuilder({
     } catch (e) {
       console.error("Failed to prepare tactic payload", e);
     }
-  }, [formation, currentFrame, frames, slotNames, router]);
+  }, [formation, currentFrame, frames, slotNames, router, buildCurrentDraftFrame, cloneFrame]);
 
   const handleAttachToReply = useCallback(() => {
     if (!returnTo) return;
+    const currentDraftFrame = buildCurrentDraftFrame();
+    const effectiveFrames = frames.map((f, idx) => (idx === currentFrame ? currentDraftFrame : cloneFrame(f)));
     const payload = {
       formation,
       currentFrame,
-      frames,
+      frames: effectiveFrames,
+      animationFrames: effectiveFrames,
       slotNames,
       createdAt: new Date().toISOString(),
       source: "lineup-builder",
     };
+    if (process.env.NODE_ENV !== "production") {
+      // eslint-disable-next-line no-console
+      console.log("[LineupBuilder] Attach to reply payload", payload);
+    }
     if (typeof window !== "undefined") {
       sessionStorage.setItem(PENDING_TACTIC_REPLY_KEY, JSON.stringify(payload));
     }
     router.push(returnTo);
-  }, [formation, currentFrame, frames, slotNames, returnTo, router]);
+  }, [formation, currentFrame, frames, slotNames, returnTo, router, buildCurrentDraftFrame, cloneFrame]);
 
   const handleExportGif = useCallback(async () => {
     const [html2canvas, GIFLib] = await Promise.all([

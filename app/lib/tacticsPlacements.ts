@@ -34,9 +34,15 @@ export type TacticsBoardData = {
   drawingData?: { strokes: DrawingStroke[] };
   /** アニメーション用のフレームデータ（任意） */
   animationFrames?: {
+    formation?: string;
+    assignments?: Record<
+      string,
+      { id: string; name: string; translatedName?: string; teamName?: string | null } | null
+    >;
     slotPositions: Record<string, { x: number; y: number }>;
     ballPosition: { x: number; y: number } | null;
     strokes: DrawingStroke[];
+    timestamp?: number;
   }[];
   currentFrame?: number;
 };
