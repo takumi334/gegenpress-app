@@ -56,20 +56,13 @@ const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
   PPL: "94",
 };
 
-const LEAGUE_ORDER: LeagueId[] = ["PL", "PD", "SA", "BL1", "FL1", "DED", "PPL"];
 const TTL_MS = 24 * 60 * 60 * 1000;
-const STAGGER_MS = 5000;
 
 const snapshotCache = new Map<LeagueId, LeagueSnapshot>();
 const inflight = new Map<LeagueId, Promise<void>>();
-let batchRefreshing = false;
 
 function leagueName(code: LeagueId): string {
   return LEAGUES.find((l) => l.id === code)?.name ?? code;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function hasAnyLeagueData(
@@ -78,6 +71,11 @@ function hasAnyLeagueData(
   teams: TeamsRes["teams"]
 ): boolean {
   return standings.length > 0 || (fixtures?.length ?? 0) > 0 || (teams?.length ?? 0) > 0;
+}
+
+function snapshotHasData(snapshot: LeagueSnapshot | undefined): boolean {
+  if (!snapshot) return false;
+  return hasAnyLeagueData(snapshot.standings, snapshot.fixtures, snapshot.teams);
 }
 
 async function safeFdFetch<T>(path: string): Promise<T | null> {
@@ -133,8 +131,17 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
   const fixturesFromFd = Array.isArray(fixturesFd?.matches) ? fixturesFd.matches : [];
   const teamsFromFd = Array.isArray(teamsFd?.teams) ? teamsFd.teams : [];
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[leagueSnapshot][${code}] raw fd`, {
+      competitionName: standingsFd?.competition?.name ?? null,
+      standingsCount: tableFd.length,
+      fixturesCount: fixturesFromFd.length,
+      teamsCount: teamsFromFd.length,
+    });
+  }
+
   if (hasAnyLeagueData(tableFd, fixturesFromFd, teamsFromFd)) {
-    return {
+    const snapshot: LeagueSnapshot = {
       standings: tableFd,
       fixtures: fixturesFromFd,
       teams: teamsFromFd,
@@ -143,6 +150,16 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
       fetchedAt: Date.now(),
       source: "fd",
     };
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[leagueSnapshot][${code}] normalized`, {
+        source: snapshot.source,
+        competitionName: snapshot.competitionName,
+        standingsCount: snapshot.standings.length,
+        fixturesCount: snapshot.fixtures?.length ?? 0,
+        teamsCount: snapshot.teams?.length ?? 0,
+      });
+    }
+    return snapshot;
   }
 
   const apiLeague = APISPORTS_LEAGUE_ID[code];
@@ -182,8 +199,16 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     name: String((t as { team?: { name?: unknown } })?.team?.name ?? ""),
   }));
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[leagueSnapshot][${code}] raw apisports`, {
+      standingsCount: standings.length,
+      fixturesCount: fixtures.length,
+      teamsCount: teams.length,
+    });
+  }
+
   if (hasAnyLeagueData(standings, fixtures, teams)) {
-    return {
+    const snapshot: LeagueSnapshot = {
       standings,
       fixtures,
       teams,
@@ -192,9 +217,19 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
       fetchedAt: Date.now(),
       source: "apisports",
     };
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[leagueSnapshot][${code}] normalized`, {
+        source: snapshot.source,
+        competitionName: snapshot.competitionName,
+        standingsCount: snapshot.standings.length,
+        fixturesCount: snapshot.fixtures?.length ?? 0,
+        teamsCount: snapshot.teams?.length ?? 0,
+      });
+    }
+    return snapshot;
   }
 
-  return {
+  const snapshot: LeagueSnapshot = {
     standings: [],
     fixtures: [],
     teams: [],
@@ -203,11 +238,21 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     fetchedAt: Date.now(),
     source: "empty",
   };
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[leagueSnapshot][${code}] normalized`, {
+      source: snapshot.source,
+      competitionName: snapshot.competitionName,
+      standingsCount: 0,
+      fixturesCount: 0,
+      teamsCount: 0,
+    });
+  }
+  return snapshot;
 }
 
 async function refreshLeague(code: LeagueId): Promise<void> {
   const current = snapshotCache.get(code);
-  if (current && Date.now() - current.fetchedAt < TTL_MS) return;
+  if (current && snapshotHasData(current) && Date.now() - current.fetchedAt < TTL_MS) return;
   if (inflight.has(code)) return inflight.get(code);
 
   const job = (async () => {
@@ -227,36 +272,15 @@ async function refreshLeague(code: LeagueId): Promise<void> {
   await job;
 }
 
-function startBatchRefresh(): void {
-  if (batchRefreshing) return;
-  batchRefreshing = true;
-  void (async () => {
-    try {
-      for (let i = 0; i < LEAGUE_ORDER.length; i += 1) {
-        const code = LEAGUE_ORDER[i];
-        await refreshLeague(code);
-        if (i < LEAGUE_ORDER.length - 1) {
-          await sleep(STAGGER_MS);
-        }
-      }
-    } finally {
-      batchRefreshing = false;
-    }
-  })();
-}
-
 export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot> {
   const cached = snapshotCache.get(code);
-  const fresh = cached && Date.now() - cached.fetchedAt < TTL_MS;
+  const fresh = cached && snapshotHasData(cached) && Date.now() - cached.fetchedAt < TTL_MS;
   if (fresh) return cached;
 
-  // まず全体リフレッシュをバックグラウンド起動（固定順 + stagger + 同一リーグ再取得抑止）
-  startBatchRefresh();
-
   // 既存成功キャッシュがあれば 429時 fallback として即返す
-  if (cached) return cached;
+  if (cached && snapshotHasData(cached)) return cached;
 
-  // 初回だけ対象リーグを同期取得（表示壊れ防止）
+  // 対象リーグのみ同期取得（他リーグ背景更新でレートを消費しない）
   await refreshLeague(code);
   return (
     snapshotCache.get(code) ?? {

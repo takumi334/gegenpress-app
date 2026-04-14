@@ -17,8 +17,8 @@
         "shapeOk": true
       },
       "fixtures": {
-        "len": 70,
-        "visibleLen": 70,
+        "len": 60,
+        "visibleLen": 60,
         "shapeOk": true
       },
       "teams": {
@@ -52,8 +52,8 @@
         "shapeOk": true
       },
       "fixtures": {
-        "len": 90,
-        "visibleLen": 90,
+        "len": 70,
+        "visibleLen": 70,
         "shapeOk": true
       },
       "teams": {
@@ -87,8 +87,8 @@
         "shapeOk": true
       },
       "fixtures": {
-        "len": 80,
-        "visibleLen": 80,
+        "len": 60,
+        "visibleLen": 60,
         "shapeOk": true
       },
       "teams": {
@@ -122,8 +122,8 @@
         "shapeOk": true
       },
       "fixtures": {
-        "len": 63,
-        "visibleLen": 63,
+        "len": 45,
+        "visibleLen": 45,
         "shapeOk": true
       },
       "teams": null

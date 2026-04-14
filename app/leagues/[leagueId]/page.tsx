@@ -72,6 +72,17 @@ export default async function LeaguePage({
   const news = Array.isArray(bundle.news) ? bundle.news : [];
   const title = bundle.competitionName || leagueName;
 
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[LeaguePage][${leagueCode}] render bundle`, {
+      source: bundle.source,
+      competitionName: bundle.competitionName,
+      code: leagueCode,
+      standingsCount: table.length,
+      fixturesCount: fixtures.length,
+      teamsCount: teams.length,
+    });
+  }
+
   return (
     <main className="p-6 space-y-8">
       <header className="space-y-1">
