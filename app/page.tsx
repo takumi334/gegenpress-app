@@ -28,7 +28,11 @@ export default function HomePage() {
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-w-5xl">
           {homeLeagues.map((lg) => (
             <li key={lg.id}>
-              <Link href={`/leagues/${lg.id}`} prefetch={false} className="block text-white underline">
+              <Link
+                href={`/leagues/${lg.id}?t=${Date.now()}`}
+                prefetch={false}
+                className="block relative z-10 pointer-events-auto text-white underline"
+              >
                 <span className="block text-2xl">{lg.id}</span>
                 <span className="block text-sm opacity-80">{lg.name}</span>
               </Link>
