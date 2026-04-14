@@ -18,3 +18,5 @@ export const LEAGUES: { id: LeagueId; name: string }[] = [
   { id: "PPL", name: "Primeira Liga" },  // ← 追加
 ];
 
+export const ACTIVE_LEAGUES: LeagueId[] = ["PL", "PD", "SA", "BL1"];
+

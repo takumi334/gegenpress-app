@@ -5,7 +5,8 @@ import { LEAGUES, type LeagueId } from "../../lib/leagues";
 import { getSiteUrl } from "../../lib/publicSiteUrl";
 import { getLeagueSnapshot } from "@/lib/server/leagueSnapshotCache";
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 function isSupportedLeague(code: string): code is LeagueId {
   return LEAGUES.some((l) => l.id === code);
@@ -68,7 +69,6 @@ export default async function LeaguePage({
 
   const table = Array.isArray(bundle.standings) ? bundle.standings : [];
   const fixtures = Array.isArray(bundle.fixtures) ? bundle.fixtures : [];
-  const teams = Array.isArray(bundle.teams) ? bundle.teams : [];
   const news = Array.isArray(bundle.news) ? bundle.news : [];
   const title = bundle.competitionName || leagueName;
 
@@ -79,7 +79,7 @@ export default async function LeaguePage({
       code: leagueCode,
       standingsCount: table.length,
       fixturesCount: fixtures.length,
-      teamsCount: teams.length,
+      teamsCount: 0,
     });
   }
 
@@ -144,25 +144,6 @@ export default async function LeaguePage({
                     {match.utcDate ? new Date(match.utcDate).toLocaleString() : "TBD"} /{" "}
                     {match.status ?? "SCHEDULED"}
                   </div>
-                </li>
-              ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xl font-semibold">Teams</h2>
-        {teams.length === 0 ? (
-          <p className="text-sm text-gray-600">No teams available.</p>
-        ) : (
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {teams
-              .filter((team) => team?.id && team?.name)
-              .map((team) => (
-                <li key={team.id} className="rounded border p-3">
-                  <Link className="text-blue-600 underline hover:opacity-80" href={`/board/${team.id}`}>
-                    {team.name}
-                  </Link>
                 </li>
               ))}
           </ul>

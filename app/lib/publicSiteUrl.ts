@@ -1,30 +1,10 @@
 /**
  * metadata / canonical / sitemap / robots 用のベースURL。
- * 本番URL（SITE_URL / NEXT_PUBLIC_SITE_URL）を優先。固定URLで検索結果の表示を安定させる。
- * VERCEL_URL は本番デプロイ時のみフォールバック（VERCEL_ENV=production）。プレビューURLは使わない。
+ * 検索エンジン向けの正本URLは常に gegenpress.app を返す。
+ * （旧 vercel.app が canonical として混入しないように固定）
  */
 export function getSiteUrl(): string {
-  const raw = (
-    process.env.SITE_URL ??
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    ""
-  ).trim();
-  if (raw) {
-    const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-    try {
-      const url = new URL(withProto);
-      return url.origin.replace(/\/$/, "");
-    } catch {
-      /* invalid */
-    }
-  }
-  if (
-    process.env.VERCEL_ENV === "production" &&
-    process.env.VERCEL_URL
-  ) {
-    return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
-  }
-  return "http://localhost:3000";
+  return "https://gegenpress.app";
 }
 
 /**

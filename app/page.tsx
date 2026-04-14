@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LEAGUES } from "@lib/leagues";
+import { ACTIVE_LEAGUES, LEAGUES } from "@lib/leagues";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 
 export const metadata = {
@@ -12,6 +12,7 @@ export const metadata = {
 };
 
 export default function HomePage() {
+  const homeLeagues = LEAGUES.filter((l) => ACTIVE_LEAGUES.includes(l.id));
   return (
     <main className="relative min-h-dvh">
       <header className="px-6 py-10 md:py-14 flex justify-between">
@@ -25,9 +26,9 @@ export default function HomePage() {
 
         <h2 className="sr-only" data-i18n>Leagues</h2>
         <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-w-5xl">
-          {LEAGUES.map((lg) => (
+          {homeLeagues.map((lg) => (
             <li key={lg.id}>
-              <Link href={`/leagues/${lg.id}`} className="block text-white underline">
+              <Link href={`/leagues/${lg.id}`} prefetch={false} className="block text-white underline">
                 <span className="block text-2xl">{lg.id}</span>
                 <span className="block text-sm opacity-80">{lg.name}</span>
               </Link>

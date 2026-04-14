@@ -2,7 +2,7 @@ import "server-only";
 
 import { fdFetch } from "@/lib/fd";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
-import { LEAGUES, type LeagueId } from "@/lib/leagues";
+import { ACTIVE_LEAGUES, LEAGUES, type LeagueId } from "@/lib/leagues";
 import { COMPETITIONS } from "@/lib/footballData.constant";
 
 type StandingRow = {
@@ -22,10 +22,6 @@ type FixturesRes = {
   }>;
 };
 
-type TeamsRes = {
-  teams?: Array<{ id?: number; name?: string }>;
-};
-
 type StandingsRes = {
   competition?: { id?: number; name?: string };
   standings?: Array<{ type?: "TOTAL"; table?: StandingRow[] }>;
@@ -38,12 +34,13 @@ type NewsRes = {
 export type LeagueSnapshot = {
   standings: StandingRow[];
   fixtures: FixturesRes["matches"];
-  teams: TeamsRes["teams"];
   news: NewsRes["items"];
   competitionName: string;
   fetchedAt: number;
   source: "fd" | "apisports" | "empty";
 };
+
+const ACTIVE_LEAGUE_SET = new Set<LeagueId>(ACTIVE_LEAGUES);
 
 const APISPORTS_SEASON = "2024";
 const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
@@ -67,20 +64,19 @@ function leagueName(code: LeagueId): string {
 
 function hasAnyLeagueData(
   standings: StandingRow[],
-  fixtures: FixturesRes["matches"],
-  teams: TeamsRes["teams"]
+  fixtures: FixturesRes["matches"]
 ): boolean {
-  return standings.length > 0 || (fixtures?.length ?? 0) > 0 || (teams?.length ?? 0) > 0;
+  return standings.length > 0 || (fixtures?.length ?? 0) > 0;
 }
 
 function snapshotHasData(snapshot: LeagueSnapshot | undefined): boolean {
   if (!snapshot) return false;
-  return hasAnyLeagueData(snapshot.standings, snapshot.fixtures, snapshot.teams);
+  return hasAnyLeagueData(snapshot.standings, snapshot.fixtures);
 }
 
 async function safeFdFetch<T>(path: string): Promise<T | null> {
   try {
-    return await fdFetch<T>(path, { next: { revalidate: 86400 } });
+    return await fdFetch<T>(path, { cache: "no-store" });
   } catch {
     return null;
   }
@@ -93,7 +89,7 @@ async function safeApiSportsFetch(path: string): Promise<Record<string, unknown>
   try {
     const res = await fetch(`https://${host}${path}`, {
       headers: { "x-apisports-key": key },
-      next: { revalidate: 86400 },
+      cache: "no-store",
     });
     if (!res.ok) return null;
     return (await res.json()) as Record<string, unknown>;
@@ -105,7 +101,7 @@ async function safeApiSportsFetch(path: string): Promise<Record<string, unknown>
 async function safeNewsFetch(q: string): Promise<NewsRes["items"]> {
   try {
     const url = `${getSiteUrl()}/api/news?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { next: { revalidate: 1800 } });
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
     const json = (await res.json()) as NewsRes;
     return Array.isArray(json?.items) ? json.items : [];
@@ -118,10 +114,24 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
   const competitionId = COMPETITIONS[code];
   const name = leagueName(code);
 
-  const [standingsFd, fixturesFd, teamsFd, news] = await Promise.all([
+  if (!ACTIVE_LEAGUE_SET.has(code)) {
+    const snapshot: LeagueSnapshot = {
+      standings: [],
+      fixtures: [],
+      news: [],
+      competitionName: name,
+      fetchedAt: Date.now(),
+      source: "empty",
+    };
+    if (process.env.NODE_ENV !== "production") {
+      console.log({ league: code, standings: 0, fixtures: 0, teams: 0 });
+    }
+    return snapshot;
+  }
+
+  const [standingsFd, fixturesFd, news] = await Promise.all([
     safeFdFetch<StandingsRes>(`/competitions/${competitionId}/standings`),
     safeFdFetch<FixturesRes>(`/competitions/${competitionId}/matches?status=SCHEDULED&limit=8`),
-    safeFdFetch<TeamsRes>(`/competitions/${competitionId}/teams`),
     safeNewsFetch(name),
   ]);
 
@@ -129,44 +139,46 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     ? (standingsFd.standings.find((s) => s?.type === "TOTAL")?.table ?? [])
     : [];
   const fixturesFromFd = Array.isArray(fixturesFd?.matches) ? fixturesFd.matches : [];
-  const teamsFromFd = Array.isArray(teamsFd?.teams) ? teamsFd.teams : [];
 
   if (process.env.NODE_ENV !== "production") {
     console.log(`[leagueSnapshot][${code}] raw fd`, {
       competitionName: standingsFd?.competition?.name ?? null,
       standingsCount: tableFd.length,
       fixturesCount: fixturesFromFd.length,
-      teamsCount: teamsFromFd.length,
     });
   }
 
-  if (hasAnyLeagueData(tableFd, fixturesFromFd, teamsFromFd)) {
+  if (hasAnyLeagueData(tableFd, fixturesFromFd)) {
     const snapshot: LeagueSnapshot = {
       standings: tableFd,
       fixtures: fixturesFromFd,
-      teams: teamsFromFd,
       news,
       competitionName: standingsFd?.competition?.name || name,
       fetchedAt: Date.now(),
       source: "fd",
     };
     if (process.env.NODE_ENV !== "production") {
+      console.log({
+        league: code,
+        standings: snapshot.standings.length,
+        fixtures: snapshot.fixtures?.length ?? 0,
+        teams: 0,
+      });
       console.log(`[leagueSnapshot][${code}] normalized`, {
         source: snapshot.source,
         competitionName: snapshot.competitionName,
         standingsCount: snapshot.standings.length,
         fixturesCount: snapshot.fixtures?.length ?? 0,
-        teamsCount: snapshot.teams?.length ?? 0,
+        teamsCount: 0,
       });
     }
     return snapshot;
   }
 
   const apiLeague = APISPORTS_LEAGUE_ID[code];
-  const [standingsApi, fixturesApi, teamsApi] = await Promise.all([
+  const [standingsApi, fixturesApi] = await Promise.all([
     safeApiSportsFetch(`/standings?league=${apiLeague}&season=${APISPORTS_SEASON}`),
     safeApiSportsFetch(`/fixtures?league=${apiLeague}&season=${APISPORTS_SEASON}&next=8`),
-    safeApiSportsFetch(`/teams?league=${apiLeague}&season=${APISPORTS_SEASON}`),
   ]);
 
   const standingsResponse = Array.isArray(standingsApi?.response) ? standingsApi.response : [];
@@ -193,37 +205,35 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     status: String((m?.fixture as Record<string, Record<string, unknown>> | undefined)?.status?.short ?? "SCHEDULED"),
   }));
 
-  const teamsResponse = Array.isArray(teamsApi?.response) ? teamsApi.response : [];
-  const teams: TeamsRes["teams"] = teamsResponse.map((t) => ({
-    id: Number((t as { team?: { id?: unknown } })?.team?.id ?? 0) || undefined,
-    name: String((t as { team?: { name?: unknown } })?.team?.name ?? ""),
-  }));
-
   if (process.env.NODE_ENV !== "production") {
     console.log(`[leagueSnapshot][${code}] raw apisports`, {
       standingsCount: standings.length,
       fixturesCount: fixtures.length,
-      teamsCount: teams.length,
     });
   }
 
-  if (hasAnyLeagueData(standings, fixtures, teams)) {
+  if (hasAnyLeagueData(standings, fixtures)) {
     const snapshot: LeagueSnapshot = {
       standings,
       fixtures,
-      teams,
       news,
       competitionName: String(standingsResponse[0]?.league?.name ?? name),
       fetchedAt: Date.now(),
       source: "apisports",
     };
     if (process.env.NODE_ENV !== "production") {
+      console.log({
+        league: code,
+        standings: snapshot.standings.length,
+        fixtures: snapshot.fixtures?.length ?? 0,
+        teams: 0,
+      });
       console.log(`[leagueSnapshot][${code}] normalized`, {
         source: snapshot.source,
         competitionName: snapshot.competitionName,
         standingsCount: snapshot.standings.length,
         fixturesCount: snapshot.fixtures?.length ?? 0,
-        teamsCount: snapshot.teams?.length ?? 0,
+        teamsCount: 0,
       });
     }
     return snapshot;
@@ -232,13 +242,13 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
   const snapshot: LeagueSnapshot = {
     standings: [],
     fixtures: [],
-    teams: [],
     news,
     competitionName: name,
     fetchedAt: Date.now(),
     source: "empty",
   };
   if (process.env.NODE_ENV !== "production") {
+    console.log({ league: code, standings: 0, fixtures: 0, teams: 0 });
     console.log(`[leagueSnapshot][${code}] normalized`, {
       source: snapshot.source,
       competitionName: snapshot.competitionName,
@@ -258,7 +268,7 @@ async function refreshLeague(code: LeagueId): Promise<void> {
   const job = (async () => {
     try {
       const next = await fetchOneLeague(code);
-      const hasData = hasAnyLeagueData(next.standings, next.fixtures, next.teams);
+      const hasData = hasAnyLeagueData(next.standings, next.fixtures);
       if (hasData || !current) {
         snapshotCache.set(code, next);
       }
@@ -286,7 +296,6 @@ export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot>
     snapshotCache.get(code) ?? {
       standings: [],
       fixtures: [],
-      teams: [],
       news: [],
       competitionName: leagueName(code),
       fetchedAt: Date.now(),
