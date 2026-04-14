@@ -42,13 +42,6 @@ export default async function RootLayout({ children }) {
 
   return (
     <html lang={initialLocale} translate="no" className="notranslate">
-      <head>
-        <meta
-          name="google-site-verification"
-          content="YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4"
-        />
-      </head>
-
       <body className="min-h-dvh bg-black text-white antialiased">
         <I18nUIProvider initialLocale={initialLocale}>
           <NativeLangProvider>
