@@ -10,6 +10,8 @@ import GrammarHints from "./components/GrammarHints";
 import AdBreakProvider from "./components/AdBreakProvider";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 
+const isPreviewEnvironment = process.env.VERCEL_ENV === "preview";
+
 export const metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
@@ -26,6 +28,17 @@ export const metadata = {
     description:
       "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も。",
   },
+  robots: isPreviewEnvironment
+    ? {
+        index: false,
+        follow: false,
+        googleBot: {
+          index: false,
+          follow: false,
+          noimageindex: true,
+        },
+      }
+    : undefined,
   twitter: {
     card: "summary_large_image",
     title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
