@@ -74,26 +74,59 @@ function snapshotHasData(snapshot: LeagueSnapshot | undefined): boolean {
   return hasAnyLeagueData(snapshot.standings, snapshot.fixtures);
 }
 
-async function safeFdFetch<T>(path: string): Promise<T | null> {
+function logLeagueFetchFailure(
+  provider: "fd" | "apisports" | "news",
+  leagueCode: LeagueId,
+  path: string,
+  detail?: string,
+) {
+  console.warn(`[leagueSnapshot][${leagueCode}] ${provider} fetch failed`, {
+    path,
+    detail: detail ?? null,
+  });
+}
+
+async function safeFdFetch<T>(leagueCode: LeagueId, path: string): Promise<T | null> {
   try {
     return await fdFetch<T>(path, { cache: "no-store" });
-  } catch {
+  } catch (error) {
+    logLeagueFetchFailure(
+      "fd",
+      leagueCode,
+      path,
+      error instanceof Error ? error.message : String(error),
+    );
     return null;
   }
 }
 
-async function safeApiSportsFetch(path: string): Promise<Record<string, unknown> | null> {
+async function safeApiSportsFetch(
+  leagueCode: LeagueId,
+  path: string,
+): Promise<Record<string, unknown> | null> {
   const host = process.env.APISPORTS_HOST ?? "";
   const key = process.env.APISPORTS_KEY ?? "";
-  if (!host || !key) return null;
+  if (!host || !key) {
+    logLeagueFetchFailure("apisports", leagueCode, path, "missing host/key");
+    return null;
+  }
   try {
     const res = await fetch(`https://${host}${path}`, {
       headers: { "x-apisports-key": key },
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      logLeagueFetchFailure("apisports", leagueCode, path, `HTTP ${res.status}`);
+      return null;
+    }
     return (await res.json()) as Record<string, unknown>;
-  } catch {
+  } catch (error) {
+    logLeagueFetchFailure(
+      "apisports",
+      leagueCode,
+      path,
+      error instanceof Error ? error.message : String(error),
+    );
     return null;
   }
 }
@@ -130,8 +163,8 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
   }
 
   const [standingsFd, fixturesFd, news] = await Promise.all([
-    safeFdFetch<StandingsRes>(`/competitions/${competitionId}/standings`),
-    safeFdFetch<FixturesRes>(`/competitions/${competitionId}/matches?status=SCHEDULED&limit=8`),
+    safeFdFetch<StandingsRes>(code, `/competitions/${competitionId}/standings`),
+    safeFdFetch<FixturesRes>(code, `/competitions/${competitionId}/matches?status=SCHEDULED&limit=8`),
     safeNewsFetch(name),
   ]);
 
@@ -177,8 +210,8 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
 
   const apiLeague = APISPORTS_LEAGUE_ID[code];
   const [standingsApi, fixturesApi] = await Promise.all([
-    safeApiSportsFetch(`/standings?league=${apiLeague}&season=${APISPORTS_SEASON}`),
-    safeApiSportsFetch(`/fixtures?league=${apiLeague}&season=${APISPORTS_SEASON}&next=8`),
+    safeApiSportsFetch(code, `/standings?league=${apiLeague}&season=${APISPORTS_SEASON}`),
+    safeApiSportsFetch(code, `/fixtures?league=${apiLeague}&season=${APISPORTS_SEASON}&next=8`),
   ]);
 
   const standingsResponse = Array.isArray(standingsApi?.response) ? standingsApi.response : [];
@@ -248,6 +281,10 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     source: "empty",
   };
   if (process.env.NODE_ENV !== "production") {
+    console.warn(`[leagueSnapshot][${code}] no data after all providers`, {
+      fdCompetitionId: competitionId,
+      apiSportsLeagueId: apiLeague,
+    });
     console.log({ league: code, standings: 0, fixtures: 0, teams: 0 });
     console.log(`[leagueSnapshot][${code}] normalized`, {
       source: snapshot.source,

@@ -57,7 +57,7 @@ export default function TeamBoardClient({ teamId, teamName }: Props) {
                   <div className="space-y-4">
                     <NextFixturePanel teamId={String(teamId)} />
                     {/* 五角形レーダー */}
-                    <TeamRadarComposer teamId={String(teamId)} />
+                    <TeamRadarComposer table={[]} />
                   </div>
                 )}
 

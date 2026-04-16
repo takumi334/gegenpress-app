@@ -1,8 +1,8 @@
 // app/team/[slug]/page.tsx
 import { notFound } from "next/navigation";
-import { fdFetch } from "@/lib/fd";
 import type { Metadata } from "next";
 import { getCanonicalUrl } from "@/lib/publicSiteUrl";
+import { getTeamPageData } from "@/lib/server/teamPageData";
 
 type Team = {
   id: number;
@@ -27,16 +27,7 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   const teamId = parseTeamIdFromSlug(params.slug);
   if (!teamId) return notFound();
 
-  let team: Team | null = null;
-  try {
-    // ★ fdFetch は { path, init } で渡す
-    team = await fdFetch<Team>({
-      path: `/teams/${teamId}`,
-      init: { cache: "no-store" },
-    });
-  } catch {
-    return notFound();
-  }
+  const { team } = await getTeamPageData(teamId);
 
   if (!team?.id) return notFound();
 

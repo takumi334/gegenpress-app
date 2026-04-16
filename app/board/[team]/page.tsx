@@ -5,13 +5,13 @@ import PredictBox from "@board/components/PredictBox";
 import type { Metadata } from "next";
 import NewsList from "./NewsList";
 import OfficialVideos from "./officialVideos";
-import { getTeamNameFromFD } from "@lib/team-resolver";
 import NewThreadForm from "@board/components/NewThreadForm";
 import BoardHeadings from "./BoardHeadings";
 import { ClubNewsTitle, OfficialVideosTitle } from "./BoardSectionTitles";
 import Link from "next/link";
 import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 import { getCanonicalUrl } from "@/lib/publicSiteUrl";
+import { getTeamPageData } from "@/lib/server/teamPageData";
 
 export async function generateMetadata({
   params,
@@ -21,7 +21,8 @@ export async function generateMetadata({
   const { team } = await (params instanceof Promise ? params : Promise.resolve(params));
   const teamId = team.trim();
   if (!/^\d+$/.test(teamId)) return { title: "掲示板" };
-  const teamName = await getTeamNameFromFD(teamId).catch(() => `Team ${teamId}`);
+  const teamData = await getTeamPageData(Number(teamId));
+  const teamName = teamData.team?.name ?? `Team ${teamId}`;
   const title = `${teamName} 掲示板`;
   const description = `${teamName}の海外サッカー掲示板。英語ファンコメントを翻訳付きで読め、試合予想や戦術議論も。`;
   return {
@@ -56,30 +57,30 @@ export default async function TeamBoardPage({
   const defaultTeamName = `Team ${teamId}`;
 
   // 並列取得（teamName に依存するものは then でバインド）
-  const teamNamePromise = getTeamNameFromFD(teamId).catch(() => null);
+  const teamDataPromise = getTeamPageData(Number(teamId));
   const threadsPromise = loadThreads(teamId);
   const hdr = await headers();
   const hdrHost =
     (process.env.VERCEL ? "https://" : "http://") +
     (hdr.get("host") ?? "localhost:3000");
-  const newsPromise = teamNamePromise.then((name) =>
-    fetchNews(name ?? defaultTeamName, hdrHost),
+  const newsPromise = teamDataPromise.then((data) =>
+    fetchNews(data.team?.name ?? defaultTeamName, hdrHost),
   );
-  const videosPromise = teamNamePromise.then((name) =>
-    fetchVideos(name ?? defaultTeamName, hdrHost),
+  const videosPromise = teamDataPromise.then((data) =>
+    fetchVideos(data.team?.name ?? defaultTeamName, hdrHost),
   );
   const predictPromise = getPredictJsonForTeam(teamId).then((r) => r.json);
 
-  const [teamNameResolved, threads, newsItems, videoItems, predict] =
+  const [teamData, threads, newsItems, videoItems, predict] =
     await Promise.all([
-      teamNamePromise,
+      teamDataPromise,
       threadsPromise,
       newsPromise,
       videosPromise,
       predictPromise,
     ]);
 
-  const teamName = teamNameResolved ?? defaultTeamName;
+  const teamName = teamData.team?.name ?? defaultTeamName;
 
   return (
     <main className="p-6 space-y-8">

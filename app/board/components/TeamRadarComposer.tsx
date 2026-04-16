@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 
 type Row = {
   position: number;
@@ -9,30 +8,13 @@ type Row = {
   gd: number;
 };
 
-export default function TeamRadarComposer({ teamId }: { teamId: string }) {
-  const [table, setTable] = useState<Row[]>([]);
-  const [err, setErr] = useState<string>("");
-
-  useEffect(() => {
-    let alive = true;
-
-    async function load() {
-      try {
-        // 57=Arsenal → PL=39 を仮定（必要なら teamId→leagueId のマップ化）
-        const res = await fetch(`/api/standings?league=39&season=2024`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-        const data = await res.json();
-        const rows = adaptToRows(data);
-        if (alive) setTable(rows);
-      } catch (e: any) {
-        if (alive) setErr(e.message ?? "load failed");
-      }
-    }
-
-    load();
-    return () => { alive = false; };
-  }, []);
+export default function TeamRadarComposer({
+  table,
+  err = "",
+}: {
+  table: Row[];
+  err?: string;
+}) {
 
   if (err) return <div>standings error: {err}</div>;
   if (!table.length) return <div>standings not found</div>;
@@ -64,31 +46,5 @@ export default function TeamRadarComposer({ teamId }: { teamId: string }) {
       </table>
     </div>
   );
-}
-
-// ---------- アダプタ ----------
-function adaptToRows(json: any): Row[] {
-  // ① すでに正規化 { table: [...] }
-  if (Array.isArray(json?.table)) {
-    return json.table as Row[];
-  }
-
-  // ② Football-Data 形式 { standings: [{type:"TOTAL", table:[...]}] }
-  const s =
-    json?.standings?.find((x: any) => x?.type === "TOTAL") ??
-    json?.standings?.[0];
-
-  if (Array.isArray(s?.table)) {
-    return s.table.map((r: any) => ({
-      position: r.position,
-      teamName: r.team?.name ?? r.teamName ?? "",
-      points: r.points,
-      played: r.playedGames ?? r.played ?? r.played_matches ?? 0,
-      gd: r.goalDifference ?? r.gd ?? 0,
-    }));
-  }
-
-  // ③ 他の形：空配列
-  return [];
 }
 
