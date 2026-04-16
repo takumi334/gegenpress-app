@@ -11,7 +11,7 @@ import BoardHeadings from "./BoardHeadings";
 import { ClubNewsTitle, OfficialVideosTitle } from "./BoardSectionTitles";
 import Link from "next/link";
 import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
-import { getSiteUrl } from "@/lib/publicSiteUrl";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
 export async function generateMetadata({
   params,
@@ -27,7 +27,7 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: { canonical: `${getSiteUrl()}/board/${teamId}` },
+    alternates: { canonical: getCanonicalUrl(`/board/${teamId}`) },
   };
 }
 import ThreadList from "@board/components/ThreadList";

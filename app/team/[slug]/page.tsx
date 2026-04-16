@@ -1,6 +1,8 @@
 // app/team/[slug]/page.tsx
 import { notFound } from "next/navigation";
 import { fdFetch } from "@/lib/fd";
+import type { Metadata } from "next";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
 type Team = {
   id: number;
@@ -70,5 +72,18 @@ export default async function TeamPage({ params }: { params: { slug: string } })
       </section>
     </main>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  return {
+    title: "Team | Gegenpress",
+    alternates: {
+      canonical: getCanonicalUrl(`/team/${params.slug}`),
+    },
+  };
 }
 

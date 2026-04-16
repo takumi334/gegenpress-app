@@ -1,8 +1,14 @@
 // app/leagues/page.tsx
 import Link from "next/link";
 import { ACTIVE_LEAGUES, LEAGUES } from "../lib/leagues";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
-export const metadata = { title: "Leagues" };
+export const metadata = {
+  title: "Leagues | Gegenpress",
+  alternates: {
+    canonical: getCanonicalUrl("/leagues"),
+  },
+};
 
 export default function LeaguesPage() {
   const visibleLeagues = LEAGUES.filter((l) => ACTIVE_LEAGUES.includes(l.id));

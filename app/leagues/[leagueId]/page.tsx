@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LEAGUES, type LeagueId } from "../../lib/leagues";
-import { getSiteUrl } from "../../lib/publicSiteUrl";
+import { getCanonicalUrl } from "../../lib/publicSiteUrl";
 import { getLeagueSnapshot } from "@/lib/server/leagueSnapshotCache";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function generateMetadata({
       title: `${leagueName} | Gegenpress`,
       description: `Standings, fixtures, teams and related news for ${leagueName}.`,
       alternates: {
-        canonical: `${getSiteUrl()}/leagues/${leagueCode || "PL"}`,
+        canonical: getCanonicalUrl(`/leagues/${leagueCode || "PL"}`),
       },
     };
   } catch {
@@ -38,7 +38,7 @@ export async function generateMetadata({
       title: "League data not available | Gegenpress",
       description: "League data not available.",
       alternates: {
-        canonical: `${getSiteUrl()}/leagues`,
+        canonical: getCanonicalUrl("/leagues"),
       },
     };
   }

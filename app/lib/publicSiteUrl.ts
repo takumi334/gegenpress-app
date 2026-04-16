@@ -7,6 +7,12 @@ export function getSiteUrl(): string {
   return "https://gegenpress.app";
 }
 
+export function getCanonicalUrl(pathname = "/"): string {
+  const base = getSiteUrl();
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  return normalizedPath === "/" ? `${base}/` : `${base}${normalizedPath}`;
+}
+
 /**
  * メール・署名付き管理URL用の公開オリジン。
  * localhost / 127.0.0.1 はメールに載せない（空扱い）。

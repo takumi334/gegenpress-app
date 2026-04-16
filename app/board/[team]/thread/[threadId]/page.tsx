@@ -2,7 +2,7 @@
 import Threadview from "./view";
 import { getThreadById } from "@/lib/boardApi";
 import { getTeamNameFromFD } from "@lib/team-resolver";
-import { getSiteUrl } from "@/lib/publicSiteUrl";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 import type { Metadata } from "next";
 
 export const revalidate = 30;
@@ -37,7 +37,7 @@ export async function generateMetadata({
   return {
     title,
     description: desc,
-    alternates: { canonical: `${getSiteUrl()}/board/${team}/thread/${threadId}` },
+    alternates: { canonical: getCanonicalUrl(`/board/${team}/thread/${threadId}`) },
   };
 }
 

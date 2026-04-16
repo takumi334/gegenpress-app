@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     }
 
     // 予想は「この teamId の次試合」視点でキャッシュ（ホーム/アウェイの xG 補正と一致させる）
-    const { json: predict } = await getPredictJsonForTeam(teamId);
+    const { json: predict } = await getPredictJsonForTeam(teamId, match);
 
     return NextResponse.json({ match, predict }, { headers: NEXT_FIXTURE_CACHE_HEADERS });
   } catch (e) {

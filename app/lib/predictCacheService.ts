@@ -7,6 +7,8 @@ import "server-only";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
 import {
   computeTeamPredict,
+  fetchNextFixtureForTeam,
+  type FixtureInput,
   type TeamPredictPayload,
 } from "@/lib/predictFixtureCompute";
 import { ensureScheduledPostsForNextFixture } from "@/lib/server/scheduler";
@@ -105,7 +107,8 @@ export function schedulePredictionRefresh(teamId: string): void {
 }
 
 async function refreshPredictionFromFd(teamId: string): Promise<void> {
-  const result = await computeTeamPredict(teamId);
+  const fixture = await fetchNextFixtureForTeam(teamId);
+  const result = await computeTeamPredict(teamId, fixture);
   const now = new Date();
 
   if (result.kind === "ok") {
@@ -136,7 +139,8 @@ export type PredictJsonResponse = Record<string, unknown>;
  * キャッシュ優先で予想 JSON を組み立てる（ルート・SSR・cron から利用）。
  */
 export async function getPredictJsonForTeam(
-  teamId: string
+  teamId: string,
+  fixtureFromCaller?: FixtureInput | null
 ): Promise<{ json: PredictJsonResponse; status: number }> {
   const id = cacheId(teamId);
   const now = new Date();
@@ -222,7 +226,10 @@ export async function getPredictJsonForTeam(
     };
   }
 
-  const live = await computeTeamPredict(teamId);
+  const fixture = fixtureFromCaller === undefined
+    ? await fetchNextFixtureForTeam(teamId)
+    : fixtureFromCaller;
+  const live = await computeTeamPredict(teamId, fixture);
 
   if (live.kind === "ok") {
     const expiresAt = new Date(now.getTime() + TTL_MS);

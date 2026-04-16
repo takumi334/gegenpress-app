@@ -1,6 +1,8 @@
 // app/predict/[pair]/page.tsx
 import PostComposer from "../components/PostComposer";
 import { fdFetch } from "@/lib/fd";
+import type { Metadata } from "next";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
 export const revalidate = 86400;
 
@@ -36,6 +38,20 @@ async function fetchStandings(competitionCode: string): Promise<TableRow[]> {
 
 // Next 15: params は Promise の可能性がある
 type PageProps = { params: Promise<{ pair: string }> };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ pair: string }>;
+}): Promise<Metadata> {
+  const { pair } = await params;
+  return {
+    title: "Match Prediction | Gegenpress",
+    alternates: {
+      canonical: getCanonicalUrl(`/predict/${pair}`),
+    },
+  };
+}
 
 export default async function Page({ params }: PageProps) {
   const { pair } = await params;

@@ -1,7 +1,23 @@
 // app/board/[team]/news/page.tsx
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { resolveTeamId, getTeamNameFromFD } from "@/lib/team-resolver";
 import NewsList from "../NewsList";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { team: string };
+}): Promise<Metadata> {
+  const teamId = params.team?.trim();
+  return {
+    title: "Club News | Gegenpress",
+    alternates: {
+      canonical: getCanonicalUrl(`/board/${teamId}/news`),
+    },
+  };
+}
 
 export default async function TeamNewsPage({ params }: { params: { team: string } }) {
   const resolved = resolveTeamId(params.team);

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ACTIVE_LEAGUES, LEAGUES } from "@lib/leagues";
-import { getSiteUrl } from "@/lib/publicSiteUrl";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
 export const metadata = {
   title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
   description:
     "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も楽しめます。海外サッカーが好きな日本人ファン向けのコミュニティサイト。",
   alternates: {
-    canonical: `${getSiteUrl()}/`,
+    canonical: getCanonicalUrl("/"),
   },
 };
 

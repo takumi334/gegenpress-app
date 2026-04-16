@@ -18,7 +18,7 @@ async function fdFetch(path: string): Promise<unknown> {
   const url = `${FD_BASE}${path}`;
   const res = await fetch(url, {
     headers: { "X-Auth-Token": FD_KEY, Accept: "application/json" },
-    cache: "no-store",
+    next: { revalidate: 60 },
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
@@ -36,11 +36,18 @@ function expWeight(daysAgo: number, halfLifeDays = 120) {
 }
 
 async function weightedStatsSplit(teamId: string) {
+  const cacheKey = teamId;
+  const cached = weightedStatsCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
   const j = (await fdFetch(`/teams/${teamId}/matches?status=FINISHED`)) as {
     matches?: unknown[];
   };
   const matches: any[] = Array.isArray(j?.matches) ? j.matches : [];
-  const now = Date.now();
+  const nowForWeight = Date.now();
 
   const acc = {
     H: { for: 0, ag: 0, w: 0 },
@@ -51,7 +58,7 @@ async function weightedStatsSplit(teamId: string) {
     const utc = m?.utcDate;
     if (utc == null) continue;
     const d = new Date(utc).getTime();
-    const daysAgo = Math.max(0, (now - d) / 86400000);
+    const daysAgo = Math.max(0, (nowForWeight - d) / 86400000);
     const w = expWeight(daysAgo, 120);
 
     const isHome = String(m?.homeTeam?.id) === teamId;
@@ -72,10 +79,33 @@ async function weightedStatsSplit(teamId: string) {
   const A_for = (acc.A.for + prior.w * prior.for) / (acc.A.w + prior.w);
   const A_ag = (acc.A.ag + prior.w * prior.ag) / (acc.A.w + prior.w);
 
-  return { H_for, H_ag, A_for, A_ag };
+  const value = { H_for, H_ag, A_for, A_ag };
+  weightedStatsCache.set(cacheKey, {
+    value,
+    expiresAt: now + WEIGHTED_STATS_TTL_MS,
+  });
+  return value;
 }
 
-async function getNextFixture(teamId: string) {
+const WEIGHTED_STATS_TTL_MS = 5 * 60 * 1000;
+const weightedStatsCache = new Map<
+  string,
+  {
+    value: { H_for: number; H_ag: number; A_for: number; A_ag: number };
+    expiresAt: number;
+  }
+>();
+
+export type FixtureInput = {
+  id?: number;
+  utcDate?: string;
+  venue?: string;
+  status?: string;
+  homeTeam?: { id?: number; name?: string; crest?: string | null };
+  awayTeam?: { id?: number; name?: string; crest?: string | null };
+};
+
+export async function fetchNextFixtureForTeam(teamId: string): Promise<FixtureInput | null> {
   const j1 = (await fdFetch(`/teams/${teamId}/matches?status=SCHEDULED`)) as {
     matches?: any[];
   };
@@ -96,7 +126,7 @@ async function getNextFixture(teamId: string) {
       )[0];
   }
 
-  return m;
+  return m ?? null;
 }
 
 function poissonP(k: number, lambda: number) {
@@ -163,13 +193,15 @@ export type ComputeTeamPredictResult =
   | { kind: "no_fixture"; payload: { message: string } }
   | { kind: "error"; message: string; rateLimited?: boolean };
 
-export async function computeTeamPredict(teamId: string): Promise<ComputeTeamPredictResult> {
+export async function computeTeamPredict(
+  teamId: string,
+  fixture: FixtureInput | null
+): Promise<ComputeTeamPredictResult> {
   if (!FD_KEY) {
     return { kind: "error", message: "FOOTBALL_DATA_API_KEY is missing in env" };
   }
 
   try {
-    const fixture = await getNextFixture(teamId);
     if (!fixture) {
       return { kind: "no_fixture", payload: { message: "No upcoming fixture found." } };
     }

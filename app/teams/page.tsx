@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCanonicalUrl } from "@/lib/publicSiteUrl";
 
 type Team = { slug: string; name: string };
 
@@ -10,6 +11,9 @@ const teams: Team[] = [
 
 export const metadata = {
   title: "Teams | Gegenpress",
+  alternates: {
+    canonical: getCanonicalUrl("/teams"),
+  },
 };
 
 export default function TeamsPage() {
