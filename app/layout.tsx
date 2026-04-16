@@ -15,18 +15,16 @@ const isPreviewEnvironment = process.env.VERCEL_ENV === "preview";
 export const metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
+    default: "Gegenpress - Football Tactics Board",
     template: "%s | Gegenpress",
   },
-  description:
-    "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も。海外サッカー好きの日本人ファン向け。",
+  description: "Create and discuss football tactics using interactive boards.",
   openGraph: {
     type: "website",
     locale: "ja_JP",
     siteName: "Gegenpress",
-    title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
-    description:
-      "海外サッカーの翻訳付き掲示板。プレミアリーグ・ラリーガなど各クラブの英語ファンコメントを翻訳で読め、試合予想や戦術議論も。",
+    title: "Gegenpress - Football Tactics Board",
+    description: "Create and discuss football tactics using interactive boards.",
   },
   robots: isPreviewEnvironment
     ? {
@@ -41,9 +39,8 @@ export const metadata = {
     : undefined,
   twitter: {
     card: "summary_large_image",
-    title: "Gegenpress｜海外サッカー掲示板・翻訳付き・試合予想",
-    description:
-      "海外サッカーの翻訳付き掲示板。英語ファンコメントを翻訳で読め、試合予想や戦術議論も。",
+    title: "Gegenpress - Football Tactics Board",
+    description: "Create and discuss football tactics using interactive boards.",
   },
   verification: {
     google: "YpiM3LqythtSfHft11x7j6oR5GgA_N6u9kqNt-M3nC4",
