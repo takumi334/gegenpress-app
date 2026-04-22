@@ -1,2 +1,15 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<subdomain>.*)\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://gegenpress.app/:path*",
+      "permanent": true
+    }
+  ]
 }
