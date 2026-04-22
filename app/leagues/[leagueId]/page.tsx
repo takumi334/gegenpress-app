@@ -5,8 +5,7 @@ import { LEAGUES, type LeagueId } from "../../lib/leagues";
 import { getCanonicalUrl } from "../../lib/publicSiteUrl";
 import { getLeagueSnapshot } from "@/lib/server/leagueSnapshotCache";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 300;
 
 function isSupportedLeague(code: string): code is LeagueId {
   return LEAGUES.some((l) => l.id === code);

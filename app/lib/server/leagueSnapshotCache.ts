@@ -1,6 +1,5 @@
 import "server-only";
 
-import { fdFetch } from "@/lib/fd";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 import { ACTIVE_LEAGUES, LEAGUES, type LeagueId } from "@/lib/leagues";
 import { COMPETITIONS } from "@/lib/footballData.constant";
@@ -43,6 +42,9 @@ export type LeagueSnapshot = {
 const ACTIVE_LEAGUE_SET = new Set<LeagueId>(ACTIVE_LEAGUES);
 
 const APISPORTS_SEASON = "2024";
+const FOOTBALL_DATA_BASE = (process.env.FD_BASE ?? "https://api.football-data.org/v4").replace(/\/$/, "");
+const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY ?? "";
+const LEAGUE_REVALIDATE_SECONDS = 5 * 60;
 const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
   PL: "39",
   PD: "140",
@@ -86,16 +88,83 @@ function logLeagueFetchFailure(
   });
 }
 
+function summarizeText(text: string, limit = 240): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, limit);
+}
+
+function summarizeFdPayload(path: string, payload: unknown): string {
+  const data = payload as {
+    competition?: { name?: string };
+    standings?: Array<{ table?: unknown[] }>;
+    matches?: unknown[];
+    count?: number;
+    message?: string;
+  };
+  if (path.includes("/standings")) {
+    const table =
+      Array.isArray(data?.standings) && Array.isArray(data.standings[0]?.table)
+        ? data.standings[0]?.table?.length ?? 0
+        : 0;
+    return `competition=${data?.competition?.name ?? "unknown"}, table=${table}`;
+  }
+  if (path.includes("/matches")) {
+    const matches = Array.isArray(data?.matches) ? data.matches.length : Number(data?.count ?? 0);
+    return `matches=${matches}`;
+  }
+  if (typeof data?.message === "string") return `message=${summarizeText(data.message, 120)}`;
+  return "payload=ok";
+}
+
 async function safeFdFetch<T>(leagueCode: LeagueId, path: string): Promise<T | null> {
-  try {
-    return await fdFetch<T>(path, { cache: "no-store" });
-  } catch (error) {
-    logLeagueFetchFailure(
-      "fd",
+  const endpoint = `football-data${path}`;
+  if (!FOOTBALL_DATA_KEY) {
+    console.error("[leagueSnapshot][fd] missing FOOTBALL_DATA_API_KEY", {
       leagueCode,
-      path,
-      error instanceof Error ? error.message : String(error),
-    );
+      endpoint,
+      status: null,
+      responseSummary: null,
+      errorMessage: "missing FOOTBALL_DATA_API_KEY",
+    });
+    return null;
+  }
+
+  const url = `${FOOTBALL_DATA_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  try {
+    const res = await fetch(url, {
+      headers: { "X-Auth-Token": FOOTBALL_DATA_KEY },
+      next: { revalidate: LEAGUE_REVALIDATE_SECONDS, tags: [`league:${leagueCode}`] },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn("[leagueSnapshot][fd] request failed", {
+        leagueCode,
+        endpoint,
+        status: res.status,
+        responseSummary: summarizeText(text),
+        errorMessage: `HTTP ${res.status} ${res.statusText}`,
+      });
+      return null;
+    }
+
+    const json = (await res.json()) as T;
+    console.info("[leagueSnapshot][fd] request ok", {
+      leagueCode,
+      endpoint,
+      status: res.status,
+      responseSummary: summarizeFdPayload(path, json),
+      errorMessage: null,
+    });
+    return json;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[leagueSnapshot][fd] fetch exception", {
+      leagueCode,
+      endpoint,
+      status: null,
+      responseSummary: null,
+      errorMessage: message,
+    });
+    logLeagueFetchFailure("fd", leagueCode, path, message);
     return null;
   }
 }
@@ -143,7 +212,7 @@ async function safeNewsFetch(q: string): Promise<NewsRes["items"]> {
   }
 }
 
-async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
+async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promise<LeagueSnapshot> {
   const competitionId = COMPETITIONS[code];
   const name = leagueName(code);
 
@@ -172,6 +241,8 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     ? (standingsFd.standings.find((s) => s?.type === "TOTAL")?.table ?? [])
     : [];
   const fixturesFromFd = Array.isArray(fixturesFd?.matches) ? fixturesFd.matches : [];
+  const mergedStandings = tableFd.length > 0 ? tableFd : previous?.standings ?? [];
+  const mergedFixtures = fixturesFromFd.length > 0 ? fixturesFromFd : previous?.fixtures ?? [];
 
   if (process.env.NODE_ENV !== "production") {
     console.log(`[leagueSnapshot][${code}] raw fd`, {
@@ -181,10 +252,10 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     });
   }
 
-  if (hasAnyLeagueData(tableFd, fixturesFromFd)) {
+  if (hasAnyLeagueData(mergedStandings, mergedFixtures)) {
     const snapshot: LeagueSnapshot = {
-      standings: tableFd,
-      fixtures: fixturesFromFd,
+      standings: mergedStandings,
+      fixtures: mergedFixtures,
       news,
       competitionName: standingsFd?.competition?.name || name,
       fetchedAt: Date.now(),
@@ -245,10 +316,12 @@ async function fetchOneLeague(code: LeagueId): Promise<LeagueSnapshot> {
     });
   }
 
-  if (hasAnyLeagueData(standings, fixtures)) {
+  const mergedApiStandings = standings.length > 0 ? standings : previous?.standings ?? [];
+  const mergedApiFixtures = fixtures.length > 0 ? fixtures : previous?.fixtures ?? [];
+  if (hasAnyLeagueData(mergedApiStandings, mergedApiFixtures)) {
     const snapshot: LeagueSnapshot = {
-      standings,
-      fixtures,
+      standings: mergedApiStandings,
+      fixtures: mergedApiFixtures,
       news,
       competitionName: String(standingsResponse[0]?.league?.name ?? name),
       fetchedAt: Date.now(),
@@ -304,7 +377,7 @@ async function refreshLeague(code: LeagueId): Promise<void> {
 
   const job = (async () => {
     try {
-      const next = await fetchOneLeague(code);
+      const next = await fetchOneLeague(code, current);
       const hasData = hasAnyLeagueData(next.standings, next.fixtures);
       if (hasData || !current) {
         snapshotCache.set(code, next);
