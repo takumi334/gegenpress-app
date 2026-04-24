@@ -15,12 +15,18 @@ export default function AdminKeyInput() {
     if (saved) setAdminKey(saved);
   }, []);
 
+  useEffect(() => {
+    if (!savedMessage) return;
+    const timer = window.setTimeout(() => setSavedMessage(""), 2000);
+    return () => window.clearTimeout(timer);
+  }, [savedMessage]);
+
   const save = () => {
     const trimmed = adminKey.trim();
     localStorage.setItem(STORAGE_KEY, trimmed);
     // Save key immediately as normalized value so UI and localStorage always match.
     setAdminKey(trimmed);
-    setSavedMessage("保存しました");
+    setSavedMessage("Saved!");
   };
 
   return (
@@ -57,11 +63,17 @@ export default function AdminKeyInput() {
           onClick={save}
           disabled={!hasKey}
           style={{
-            padding: "6px 10px",
+            minWidth: 104,
+            minHeight: 40,
+            padding: "8px 14px",
             borderRadius: 6,
             border: "1px solid #ccc",
             cursor: hasKey ? "pointer" : "not-allowed",
             background: hasKey ? "#fff" : "#f5f5f5",
+            color: "#111",
+            fontSize: 12,
+            fontWeight: 600,
+            lineHeight: 1.2,
           }}
         >
           Save key
