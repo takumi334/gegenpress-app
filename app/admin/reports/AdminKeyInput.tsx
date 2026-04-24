@@ -6,7 +6,9 @@ const STORAGE_KEY = "ADMIN_KEY";
 
 export default function AdminKeyInput() {
   const [adminKey, setAdminKey] = useState("");
+  const [savedMessage, setSavedMessage] = useState("");
   const hasKey = useMemo(() => adminKey.trim().length > 0, [adminKey]);
+  const maskedKey = useMemo(() => (adminKey ? "*".repeat(adminKey.length) : "（未入力）"), [adminKey]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) ?? "";
@@ -14,8 +16,11 @@ export default function AdminKeyInput() {
   }, []);
 
   const save = () => {
-    localStorage.setItem(STORAGE_KEY, adminKey.trim());
-    alert("Admin key saved");
+    const trimmed = adminKey.trim();
+    localStorage.setItem(STORAGE_KEY, trimmed);
+    // Save key immediately as normalized value so UI and localStorage always match.
+    setAdminKey(trimmed);
+    setSavedMessage("保存しました");
   };
 
   return (
@@ -34,8 +39,18 @@ export default function AdminKeyInput() {
           type="password"
           placeholder="Enter admin key"
           value={adminKey}
-          onChange={(e) => setAdminKey(e.target.value)}
-          style={{ minWidth: 260, padding: "6px 8px", border: "1px solid #ccc", borderRadius: 6 }}
+          onChange={(e) => {
+            setAdminKey(e.target.value);
+            if (savedMessage) setSavedMessage("");
+          }}
+          style={{
+            minWidth: 260,
+            padding: "6px 8px",
+            border: "1px solid #ccc",
+            borderRadius: 6,
+            color: "#000",
+            background: "#fff",
+          }}
         />
         <button
           type="button"
@@ -52,6 +67,13 @@ export default function AdminKeyInput() {
           Save key
         </button>
       </div>
+      <div style={{ marginTop: 8, fontSize: 12, color: "#444" }}>
+        masked: <code>{maskedKey}</code>
+      </div>
+      {savedMessage ? (
+        <div style={{ marginTop: 6, fontSize: 12, color: "#0a7a33" }}>{savedMessage}</div>
+      ) : null}
+      <style>{`input::placeholder { color: #666; opacity: 1; }`}</style>
     </section>
   );
 }
