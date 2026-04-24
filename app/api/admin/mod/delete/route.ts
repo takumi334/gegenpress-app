@@ -1,60 +1,62 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-import { verifyAdminDeleteToken } from "@/lib/adminDeleteToken";
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 
 export const runtime = "nodejs";
 
-/**
- * 署名付きトークンのみ。管理者メール内 URL から POST。
- */
-export async function POST(req: Request) {
-  let token = "";
+export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json().catch(() => ({}))) as { token?: string };
-    token = typeof body.token === "string" ? body.token.trim() : "";
+    requireAdminApiKey(req);
   } catch {
-    token = "";
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  if (!token) {
-    return NextResponse.json({ ok: false, error: "token_required" }, { status: 403 });
+  let payload: { reportId?: number; targetId?: number; type?: "thread" | "post" } = {};
+  try {
+    payload = (await req.json().catch(() => ({}))) as {
+      reportId?: number;
+      targetId?: number;
+      type?: "thread" | "post";
+    };
+  } catch {
+    payload = {};
   }
 
-  const payload = verifyAdminDeleteToken(token);
-  if (!payload) {
-    return NextResponse.json(
-      { ok: false, error: "invalid_or_expired_token" },
-      { status: 403 }
-    );
+  if (
+    !Number.isFinite(Number(payload.reportId)) ||
+    !Number.isFinite(Number(payload.targetId)) ||
+    (payload.type !== "thread" && payload.type !== "post")
+  ) {
+    return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
   }
 
   try {
     await withPrismaRetry("admin/mod/delete transaction", async () => {
       await prisma.$transaction(async (tx) => {
         const report = await tx.report.findUnique({
-          where: { id: payload.reportId },
+          where: { id: Number(payload.reportId) },
         });
         if (!report) {
           throw new Error("REPORT_NOT_FOUND");
         }
-        if (report.targetId !== payload.targetId || report.kind !== payload.type) {
+        if (report.targetId !== Number(payload.targetId) || report.kind !== payload.type) {
           throw new Error("REPORT_MISMATCH");
         }
 
         if (payload.type === "thread") {
-          const th = await tx.thread.findUnique({ where: { id: payload.targetId } });
+          const th = await tx.thread.findUnique({ where: { id: Number(payload.targetId) } });
           if (th) {
             await tx.thread.update({
-              where: { id: payload.targetId },
+              where: { id: Number(payload.targetId) },
               data: { deletedAt: new Date() },
             });
           }
         } else {
-          await tx.post.deleteMany({ where: { id: payload.targetId } });
+          await tx.post.deleteMany({ where: { id: Number(payload.targetId) } });
         }
 
         await tx.report.deleteMany({
-          where: { kind: payload.type, targetId: payload.targetId },
+          where: { kind: payload.type, targetId: Number(payload.targetId) },
         });
       });
     });

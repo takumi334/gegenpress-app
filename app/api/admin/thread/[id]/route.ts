@@ -9,6 +9,10 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log("[/api/admin/thread/[id]] incoming request", {
+      hasAdminHeader: !!req.headers.get("x-admin-key"),
+      adminHeaderLen: (req.headers.get("x-admin-key") ?? "").trim().length,
+    });
     requireAdminApiKey(req);
 
     const { id: idStr } = await context.params;
@@ -45,6 +49,13 @@ export async function DELETE(
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
+    console.log("[/api/admin/thread/[id]] failed", {
+      message: msg,
+      hasEnv: !!process.env.ADMIN_KEY,
+      envLen: process.env.ADMIN_KEY?.length ?? 0,
+      hasAdminHeader: !!req.headers.get("x-admin-key"),
+      adminHeaderLen: (req.headers.get("x-admin-key") ?? "").trim().length,
+    });
 
     const status = msg === "UNAUTHORIZED" ? 401 : 500;
 

@@ -58,8 +58,8 @@ export async function sendReportMail(args: ReportMailContext) {
       : "",
     "",
     args.adminDeleteUrl
-      ? `管理者削除URL（共有厳禁・期限付き署名）:\n${args.adminDeleteUrl}`
-      : `管理者削除URL:\n（ADMIN_DELETE_SECRET 未設定または無効のため省略）`,
+      ? `管理者対応:\n管理画面（ADMIN_KEY）から削除してください\n${args.adminDeleteUrl}`
+      : `管理者対応:\nADMIN_KEY で管理画面から削除してください`,
     args.siteUrlNote && args.publicViewUrl
       ? `\n※ URL ベース: ${args.siteUrlNote}`
       : "",

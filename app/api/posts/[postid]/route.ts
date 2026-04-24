@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 const BOARD_REPLY_LOOKUP_CACHE_HEADERS: Record<string, string> = {
   "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
 };
@@ -41,12 +42,12 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ postid: string }> }
 ) {
-  // ✅ 管理者キー確認
-  const adminKey = req.headers.get("x-admin-key");
-  if (!adminKey || adminKey !== process.env.ADMIN_DELETE_KEY) {
+  try {
+    requireAdminApiKey(req);
+  } catch {
     return NextResponse.json(
-      { ok: false, message: "forbidden" },
-      { status: 403 }
+      { ok: false, message: "UNAUTHORIZED" },
+      { status: 401 }
     );
   }
 
