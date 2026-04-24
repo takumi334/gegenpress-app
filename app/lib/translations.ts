@@ -5,12 +5,18 @@
 
 import ja from "translations/ja.json";
 import en from "translations/en.json";
+import it from "translations/it.json";
+import es from "translations/es.json";
+import de from "translations/de.json";
 
-export type SupportedLang = "ja" | "en";
+export type SupportedLang = "ja" | "en" | "it" | "es" | "de";
 
 const DICT: Record<SupportedLang, Record<string, unknown>> = {
   ja: ja as Record<string, unknown>,
   en: en as Record<string, unknown>,
+  it: it as Record<string, unknown>,
+  es: es as Record<string, unknown>,
+  de: de as Record<string, unknown>,
 };
 
 function getNested(obj: Record<string, unknown>, path: string): string | undefined {
@@ -29,7 +35,7 @@ export function t(
   key: string,
   params?: Record<string, string | number>
 ): string {
-  const code = (lang === "ja" ? "ja" : "en") as SupportedLang;
+  const code = (["ja", "en", "it", "es", "de"].includes(lang) ? lang : "en") as SupportedLang;
   const dict = DICT[code];
   let str = getNested(dict, key) ?? getNested(DICT.en, key) ?? key;
   if (params) {

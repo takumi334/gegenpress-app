@@ -101,6 +101,13 @@ export default function ThreadView({
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [postTranslations, setPostTranslations] = useState<Record<string, string>>({});
+  const locale = useMemo(() => {
+    if (targetLang === "it") return "it-IT";
+    if (targetLang === "es") return "es-ES";
+    if (targetLang === "de") return "de-DE";
+    if (targetLang === "ja") return "ja-JP";
+    return "en-US";
+  }, [targetLang]);
 
   const load = useCallback(async (forceFresh = false) => {
     setLoading(true);
@@ -315,8 +322,8 @@ export default function ThreadView({
                 return (
                   <li key={`tb-${tb.id}`} className="border border-white/10 rounded p-3 bg-white/[0.02]">
                     <div className="text-xs text-white/50 mb-1">
-                      {tb.mode === "LIVE_MATCH" ? t("tactics.liveMemo") : tb.mode === "GENERAL" ? "戦術（lineup-builder）" : t("tactics.preMatch")} ·{" "}
-                      {new Date(tb.createdAt).toLocaleString("ja-JP")}
+                      {tb.mode === "LIVE_MATCH" ? t("tactics.liveMemo") : tb.mode === "GENERAL" ? t("tactics.lineupBuilderTag") : t("tactics.preMatch")} ·{" "}
+                      {new Date(tb.createdAt).toLocaleString(locale)}
                     </div>
                     {tb.title ? <div className="font-medium text-sm text-white/90 mt-1">{tb.title}</div> : null}
                     {tb.body ? <p className="text-sm text-white/80 whitespace-pre-wrap mt-1">{tb.body}</p> : null}
@@ -391,7 +398,7 @@ export default function ThreadView({
                         }}
                         className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[#0a0a0a] text-white border border-white/20 hover:bg-[#1a1a1a] hover:border-white/30 transition-colors"
                       >
-                        Xで投稿
+                        {t("thread.postOnX")}
                       </button>
                       <ReportButton kind="post" targetId={Number(p.id)} teamId={teamId} />
                     </div>
@@ -409,7 +416,7 @@ export default function ThreadView({
                         noTranslation={noTranslation}
                         emptyTranslationHint={
                           translationPending && (p.body ?? "").trim()
-                            ? "（ヘッダーの「翻訳する」で表示）"
+                            ? t("thread.translationPendingHint")
                             : undefined
                         }
                       />
@@ -520,7 +527,7 @@ export function ReplyForm({
       setPendingTactic(null);
       onPosted();
     } catch (e: any) {
-      setErr(e?.message || "Failed to post");
+      setErr(e?.message || t("thread.postFailed"));
     } finally {
       setBusy(false);
     }
@@ -536,7 +543,7 @@ export function ReplyForm({
       {returnTo && (
         <p className="text-xs text-white/70 mb-1">
           <Link href={`/lineup-builder?returnTo=${encodeURIComponent(returnTo)}`} className="underline">
-            作戦を描いて返信
+            {t("thread.drawTacticsAndReply")}
           </Link>
         </p>
       )}
@@ -560,7 +567,7 @@ export function ReplyForm({
             onClick={() => setPendingTactic(null)}
             className="text-xs text-white/70 underline"
           >
-            作戦を外す
+            {t("thread.removeTactics")}
           </button>
         </div>
       )}

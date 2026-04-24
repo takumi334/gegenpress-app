@@ -9,22 +9,24 @@ import {
   type ReactNode,
 } from "react";
 import { t as tFn } from "./translations";
+import { UI_STORAGE_KEY } from "@/lib/i18n/ui";
 
 /** UI表示用の言語（ラベル・見出し・ボタンなど）。投稿の Native/Target とは別。 */
-export type UILanguage = "ja" | "en";
-
-const UI_LANG_KEY = "uiLanguage";
+export type UILanguage = "ja" | "en" | "it" | "es" | "de";
 
 function getStoredUILanguage(): UILanguage {
   if (typeof window === "undefined") return "en";
   try {
     const saved =
-      localStorage.getItem(UI_LANG_KEY) ||
+      localStorage.getItem(UI_STORAGE_KEY) ||
       localStorage.getItem("nativeLang") ||
       localStorage.getItem("baseLang");
-    if (saved === "ja" || saved === "en") return saved;
+    if (saved === "ja" || saved === "en" || saved === "it" || saved === "es" || saved === "de") return saved;
     const browser = navigator.language?.split("-")[0] || "en";
-    return browser === "ja" ? "ja" : "en";
+    if (browser === "ja" || browser === "en" || browser === "it" || browser === "es" || browser === "de") {
+      return browser;
+    }
+    return "en";
   } catch {
     return "en";
   }
@@ -63,7 +65,7 @@ export function NativeLangProvider({ children }: { children: ReactNode }) {
   const setUILanguage = useCallback((v: UILanguage) => {
     setState(v);
     try {
-      localStorage.setItem(UI_LANG_KEY, v);
+      localStorage.setItem(UI_STORAGE_KEY, v);
       localStorage.setItem("nativeLang", v);
       localStorage.setItem("baseLang", v);
       window.dispatchEvent(new Event("nativeLangChange"));

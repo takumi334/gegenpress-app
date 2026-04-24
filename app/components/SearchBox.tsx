@@ -24,10 +24,10 @@ export default function SearchBox({ className = "" }: { className?: string }) {
         onChange={(e) => setQ(e.target.value)}
         placeholder={t("header.searchPlaceholder")}
         className="w-full rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/60 outline-none focus:border-white/40"
-        aria-label="Search"
+        aria-label={t("header.searchAria")}
       />
       <button type="submit" className="sr-only">
-        Search
+        {t("header.searchButton")}
       </button>
     </form>
   );

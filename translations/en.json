@@ -10,7 +10,18 @@
   },
   "header": {
     "lineup": "Lineup",
-    "searchPlaceholder": "Search players / clubs / threads…"
+    "searchPlaceholder": "Search players / clubs / threads…",
+    "searchAria": "Search",
+    "searchButton": "Search",
+    "uiLabel": "UI",
+    "uiLanguageAria": "UI language",
+    "nativeLabel": "Native",
+    "targetLabel": "Target",
+    "nativeLanguageAria": "Native language for posts",
+    "targetLanguageAria": "Target translation language",
+    "translationNotRequired": "No translation needed",
+    "translatePosts": "Translate",
+    "translatePostsTitle": "Translate thread titles and bodies to target language (API)"
   },
   "tactics": {
     "title": "Post tactics board",
@@ -55,7 +66,8 @@
     "editBoard": "Edit board",
     "newBoard": "New tactics board",
     "updateSubmit": "Save changes",
-    "backToView": "Back to view"
+    "backToView": "Back to view",
+    "lineupBuilderTag": "Tactics (lineup-builder)"
   },
   "thread": {
     "preMatchThread": "Pre-match",
@@ -70,7 +82,12 @@
     "displayNamePlaceholder": "Display name (optional)",
     "sharePlaceholder": "Share your thoughts...",
     "postReply": "Post reply",
-    "posting": "Posting…"
+    "posting": "Posting…",
+    "postFailed": "Failed to post",
+    "postOnX": "Post on X",
+    "translationPendingHint": "(Shown after pressing Translate in header)",
+    "drawTacticsAndReply": "Draw tactics and reply",
+    "removeTactics": "Remove tactics"
   },
   "board": {
     "boardTitle": "{teamName} Board",
@@ -106,7 +123,31 @@
     "noUpcoming": "No upcoming match.",
     "loadingNextFixture": "Loading…",
     "winDrawOdds": "Win/Draw odds",
-    "expectedGoals": "Expected goals (xG-like, simple)"
+    "expectedGoals": "Expected goals (xG-like, simple)",
+    "expectedGoalsShort": "xG",
+    "showingCached": "Showing cached data (may refresh in background)."
+  },
+  "ui": {
+    "createTacticsBoard": "Create Tactics Board",
+    "displayNameOptional": "Display name (optional)",
+    "title": "Title",
+    "body": "Body",
+    "post": "Post",
+    "translate": "Translate",
+    "translateUI": "UI language",
+    "nextFixturePrediction": "Next fixture & Prediction",
+    "winDrawOdds": "Win/Draw odds",
+    "topScorelines": "Top scorelines",
+    "lineupBuilder": "Lineup Builder",
+    "tacticsBoard": "Tactics board",
+    "exportGif": "Export GIF",
+    "sendToBoard": "Send to board",
+    "saveLineup": "Save lineup",
+    "frame": "Frame",
+    "play": "Play",
+    "community": "Community",
+    "prediction": "Prediction",
+    "standings": "Standings"
   },
   "report": {
     "button": "Report",

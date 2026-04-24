@@ -10,7 +10,18 @@
   },
   "header": {
     "lineup": "スタメン",
-    "searchPlaceholder": "選手・クラブ・スレを検索…"
+    "searchPlaceholder": "選手・クラブ・スレを検索…",
+    "searchAria": "検索",
+    "searchButton": "検索",
+    "uiLabel": "UI",
+    "uiLanguageAria": "UI言語",
+    "nativeLabel": "Native",
+    "targetLabel": "Target",
+    "nativeLanguageAria": "投稿原文言語",
+    "targetLanguageAria": "投稿翻訳先言語",
+    "translationNotRequired": "翻訳不要",
+    "translatePosts": "翻訳する",
+    "translatePostsTitle": "掲示板の本文・タイトルを Target 言語へ翻訳（API）"
   },
   "tactics": {
     "title": "戦術ボードを投稿",
@@ -55,7 +66,8 @@
     "editBoard": "作戦ボードを編集",
     "newBoard": "新規作戦ボード",
     "updateSubmit": "変更を保存",
-    "backToView": "閲覧に戻る"
+    "backToView": "閲覧に戻る",
+    "lineupBuilderTag": "戦術（lineup-builder）"
   },
   "thread": {
     "preMatchThread": "試合前スレ",
@@ -70,7 +82,12 @@
     "displayNamePlaceholder": "表示名（任意）",
     "sharePlaceholder": "意見を共有…",
     "postReply": "返信する",
-    "posting": "送信中…"
+    "posting": "送信中…",
+    "postFailed": "投稿に失敗しました",
+    "postOnX": "Xで投稿",
+    "translationPendingHint": "（ヘッダーの「翻訳する」で表示）",
+    "drawTacticsAndReply": "作戦を描いて返信",
+    "removeTactics": "作戦を外す"
   },
   "board": {
     "boardTitle": "{teamName} 掲示板",
@@ -106,7 +123,31 @@
     "noUpcoming": "次の試合はありません。",
     "loadingNextFixture": "読み込み中…",
     "winDrawOdds": "Win/Draw odds",
-    "expectedGoals": "Expected goals (xG-like, simple)"
+    "expectedGoals": "Expected goals (xG-like, simple)",
+    "expectedGoalsShort": "xG",
+    "showingCached": "※ キャッシュを表示しています（バックグラウンドで更新される場合があります）"
+  },
+  "ui": {
+    "createTacticsBoard": "戦術ボード作成",
+    "displayNameOptional": "表示名（任意）",
+    "title": "タイトル",
+    "body": "本文",
+    "post": "投稿",
+    "translate": "翻訳",
+    "translateUI": "UI言語",
+    "nextFixturePrediction": "次の試合と予想",
+    "winDrawOdds": "勝敗確率",
+    "topScorelines": "主なスコア予想",
+    "lineupBuilder": "スタメンビルダー",
+    "tacticsBoard": "戦術ボード",
+    "exportGif": "GIF出力",
+    "sendToBoard": "掲示板へ送る",
+    "saveLineup": "スタメン保存",
+    "frame": "フレーム",
+    "play": "再生",
+    "community": "コミュニティ",
+    "prediction": "予想",
+    "standings": "順位表"
   },
   "report": {
     "button": "通報",

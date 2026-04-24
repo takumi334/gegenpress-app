@@ -123,7 +123,7 @@ export default function PredictBox({
       <h3 className="text-lg font-semibold mb-3">{t("predict.nextFixturePrediction")}</h3>
       {data?.meta?.source === "stale" && (
         <p className="text-[11px] opacity-60 mb-2">
-          ※ キャッシュを表示しています（バックグラウンドで更新される場合があります）
+          {t("predict.showingCached")}
         </p>
       )}
 
@@ -153,7 +153,7 @@ export default function PredictBox({
           H {pct(data.winProb?.home)} / D {pct(data.winProb?.draw)} / A {pct(data.winProb?.away)}
         </div>
         <div>
-          <span className="font-medium">xG:</span>{" "}
+          <span className="font-medium">{t("predict.expectedGoalsShort")}:</span>{" "}
           H {num(data.xg?.home)} – A {num(data.xg?.away)}
         </div>
       </div>

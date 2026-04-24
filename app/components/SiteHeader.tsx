@@ -44,10 +44,15 @@ export default function SiteHeader() {
               GEGENPRESS
             </Link>
           </div>
-          <div className="shrink-0 flex flex-wrap items-center gap-3">
-            <PostTranslationSelect />
-            <PageI18nTranslateButton />
-            <GlobeTranslate />
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <PostTranslationSelect />
+              <PageI18nTranslateButton />
+            </div>
+            <div className="hidden sm:block h-6 w-px bg-black/20" aria-hidden />
+            <div className="pt-1 sm:pt-0">
+              <GlobeTranslate />
+            </div>
           </div>
         </div>
       </div>
