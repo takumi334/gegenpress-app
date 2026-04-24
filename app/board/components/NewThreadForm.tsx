@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/lib/NativeLangProvider";
 import type { LineupTacticPayload } from "@/lib/lineupTacticData";
 
 export default function NewThreadForm({ teamId }: { teamId: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const t = useT();
   const [authorName, setAuthorName] = useState("");
   const [title, setTitle] = useState("");
@@ -14,6 +15,31 @@ export default function NewThreadForm({ teamId }: { teamId: string }) {
   const [hasPendingTactic, setHasPendingTactic] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [pendingTacticPayload, setPendingTacticPayload] = useState<LineupTacticPayload | null>(null);
+  const [resolvedTeamId, setResolvedTeamId] = useState(teamId);
+
+  useEffect(() => {
+    const seg = pathname?.split("/").filter(Boolean) ?? [];
+    const boardIdx = seg.indexOf("board");
+    const teamFromPath = boardIdx >= 0 ? seg[boardIdx + 1] : "";
+    const normalized = (teamFromPath || teamId || "").trim();
+    if (normalized) setResolvedTeamId(normalized);
+  }, [pathname, teamId]);
+
+  useEffect(() => {
+    setAuthorName("");
+    setTitle("");
+    setBody("");
+    setMessage("");
+    setHasPendingTactic(false);
+    setPreviewImage(null);
+    setPendingTacticPayload(null);
+  }, [resolvedTeamId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!resolvedTeamId) return;
+    sessionStorage.setItem("lastBoardPath", `/board/${resolvedTeamId}`);
+  }, [resolvedTeamId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -53,13 +79,15 @@ export default function NewThreadForm({ teamId }: { teamId: string }) {
     const bodyText = body.trim();
     const payload: {
       teamId: string;
+      boardSlug: string;
       title: string;
       body: string;
       authorName?: string;
       threadType: string;
       tacticPayload?: LineupTacticPayload;
     } = {
-      teamId,
+      teamId: resolvedTeamId,
+      boardSlug: resolvedTeamId,
       title: title.trim(),
       body: bodyText,
       authorName: authorName.trim() || undefined,
@@ -89,7 +117,7 @@ export default function NewThreadForm({ teamId }: { teamId: string }) {
         throw new Error("Invalid thread id in response");
       }
       // 作成直後にスレッド詳細へ（正しい threadId でリダイレクト）
-      router.push(`/board/${teamId}/thread/${threadId}`);
+      router.push(`/board/${resolvedTeamId}/thread/${threadId}`);
     } catch (err: any) {
       console.error(err);
       setMessage(t("newThread.postFailed") + ": " + err.message);

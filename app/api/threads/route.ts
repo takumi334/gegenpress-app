@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { listThreads, createThread, createTacticsBoardForThread } from "@/lib/boardApi";
 import { translateBatch } from "@/lib/translate";
 import { NO_STORE_HEADERS } from "@/lib/noStore";
+import { getTeamIdFromParam } from "@/lib/teams";
 import {
   containsBannedWords,
   containsBannedWordsInFields,
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const payload = await req.json() as {
       teamId: number | string;
+      boardSlug?: string;
       title?: string;
       body?: string;
       threadType?: string | null;
@@ -53,12 +55,32 @@ export async function POST(req: NextRequest) {
       targetLang?: string;
       authorName?: string;
     };
-    const { teamId, title, body, threadType, tacticPayload, targetLang, authorName } =
+    const { teamId, boardSlug, title, body, threadType, tacticPayload, targetLang, authorName } =
       payload;
 
     const t = Number(teamId);
     if (!Number.isInteger(t)) {
       return new Response(JSON.stringify({ error: "teamId must be integer" }), { status: 400, headers: NO_STORE_HEADERS });
+    }
+    if (typeof boardSlug === "string" && boardSlug.trim()) {
+      const resolvedFromSlug = await getTeamIdFromParam(boardSlug.trim());
+      if (resolvedFromSlug == null) {
+        return new Response(JSON.stringify({ error: "invalid boardSlug" }), {
+          status: 400,
+          headers: NO_STORE_HEADERS,
+        });
+      }
+      if (resolvedFromSlug !== t) {
+        return new Response(
+          JSON.stringify({
+            error: "teamId/boardSlug mismatch",
+            teamId: t,
+            boardSlug: boardSlug.trim(),
+            resolvedTeamId: resolvedFromSlug,
+          }),
+          { status: 400, headers: NO_STORE_HEADERS }
+        );
+      }
     }
     if (!title || !title.trim()) {
       return new Response(JSON.stringify({ error: "title required" }), { status: 400, headers: NO_STORE_HEADERS });

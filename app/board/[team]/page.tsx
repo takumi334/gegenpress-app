@@ -97,8 +97,9 @@ export default async function TeamBoardPage({
 
       <section className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)] gap-6 items-start">
         <div className="space-y-4">
-          <NewThreadForm teamId={teamId} />
+          <NewThreadForm key={`composer-${teamId}`} teamId={teamId} />
           <ThreadList
+            key={`thread-list-${teamId}`}
             teamId={teamId}
             initialItems={threads}
             highlightThreadId={sp.highlightThread}

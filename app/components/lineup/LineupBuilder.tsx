@@ -413,7 +413,10 @@ export default function LineupBuilder({
       if (typeof window !== "undefined") {
         sessionStorage.setItem("pendingTacticPost", JSON.stringify(payload));
       }
-      router.push("/board/57"); // 例: チームID 57 の掲示板トップへ
+      const fallbackBoard = typeof window !== "undefined"
+        ? sessionStorage.getItem("lastBoardPath") || "/board"
+        : "/board";
+      router.push(fallbackBoard);
     } catch (e) {
       console.error("Failed to prepare tactic payload", e);
     }
