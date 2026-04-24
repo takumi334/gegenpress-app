@@ -7,10 +7,9 @@ export function DeleteThreadButton({ id }: { id: number }) {
       onClick={async () => {
         if (!confirm(`thread #${id} を削除（論理削除）します。OK？`)) return;
 
-        // ★ここから追加（超重要）
         const adminKey = (localStorage.getItem("ADMIN_KEY") ?? "").trim();
         if (!adminKey) {
-          alert("ADMIN_KEY が localStorage にありません。先に保存してください。");
+          alert("Admin key required");
           return;
         }
 
@@ -25,7 +24,12 @@ export function DeleteThreadButton({ id }: { id: number }) {
         const json = await res.json().catch(() => ({}));
 
         if (!res.ok || !json.ok) {
-          alert(`削除失敗: ${json?.message ?? res.status}`);
+          const message = String(json?.message ?? "");
+          if (res.status === 401 || message === "UNAUTHORIZED") {
+            alert("Admin keyが違います");
+            return;
+          }
+          alert(`削除失敗: ${message || res.status}`);
           return;
         }
 
