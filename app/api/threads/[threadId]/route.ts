@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ threadI
             id: true,
             author: true,
             body: true,
+            // Post soft delete is not implemented yet, keep field optional on client.
             translatedBody: true,
             tactic: true,
             createdAt: true,

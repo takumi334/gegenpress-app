@@ -2,18 +2,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
+import { requireAdminUserEmail } from "@/lib/adminUser";
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    console.log("[/api/admin/thread/[id]] incoming request", {
-      hasAdminHeader: !!req.headers.get("x-admin-key"),
-      adminHeaderLen: (req.headers.get("x-admin-key") ?? "").trim().length,
-    });
-    requireAdminApiKey(req);
+    await requireAdminUserEmail();
 
     const { id: idStr } = await context.params;
     const id = Number(idStr);
@@ -49,16 +45,43 @@ export async function DELETE(
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.log("[/api/admin/thread/[id]] failed", {
-      message: msg,
-      hasEnv: !!process.env.ADMIN_KEY,
-      envLen: process.env.ADMIN_KEY?.length ?? 0,
-      hasAdminHeader: !!req.headers.get("x-admin-key"),
-      adminHeaderLen: (req.headers.get("x-admin-key") ?? "").trim().length,
-    });
 
-    const status = msg === "UNAUTHORIZED" ? 401 : 500;
+    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
 
+    return NextResponse.json({ ok: false, message: msg }, { status });
+  }
+}
+
+export async function PATCH(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdminUserEmail();
+    const { id: idStr } = await context.params;
+    const id = Number(idStr);
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
+    }
+
+    const exists = await withPrismaRetry("PATCH /api/admin/thread thread.findUnique", () =>
+      prisma.thread.findUnique({ where: { id } })
+    );
+    if (!exists) {
+      return NextResponse.json({ ok: false, message: "Not found" }, { status: 404 });
+    }
+
+    await withPrismaRetry("PATCH /api/admin/thread thread.restore", () =>
+      prisma.thread.update({
+        where: { id },
+        data: { deletedAt: null },
+      })
+    );
+
+    return NextResponse.json({ ok: true, restoredThread: true });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json({ ok: false, message: msg }, { status });
   }
 }

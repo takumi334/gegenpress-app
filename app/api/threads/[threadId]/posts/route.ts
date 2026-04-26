@@ -79,7 +79,7 @@ export async function POST(
     const exists = await withPrismaRetry("POST /api/threads/[threadId]/posts thread.findUnique", () =>
       prisma.thread.findUnique({
         where: { id: idNum },
-        select: { id: true },
+        select: { id: true, deletedAt: true },
       })
     );
 
@@ -87,6 +87,12 @@ export async function POST(
       return NextResponse.json(
         { error: "thread not found" },
         { status: 404, headers: NO_STORE_HEADERS }
+      );
+    }
+    if (exists.deletedAt) {
+      return NextResponse.json(
+        { error: "thread already deleted" },
+        { status: 409, headers: NO_STORE_HEADERS }
       );
     }
 

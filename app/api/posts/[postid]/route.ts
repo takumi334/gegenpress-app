@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
-import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
+import { requireAdminUserEmail } from "@/lib/adminUser";
 const BOARD_REPLY_LOOKUP_CACHE_HEADERS: Record<string, string> = {
   "Cache-Control": "public, s-maxage=60, stale-while-revalidate=30",
 };
@@ -39,15 +39,17 @@ export async function GET(
 }
 
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   context: { params: Promise<{ postid: string }> }
 ) {
   try {
-    requireAdminApiKey(req);
-  } catch {
+    await requireAdminUserEmail();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
     return NextResponse.json(
-      { ok: false, message: "UNAUTHORIZED" },
-      { status: 401 }
+      { ok: false, message: msg },
+      { status }
     );
   }
 

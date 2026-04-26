@@ -58,8 +58,8 @@ export async function sendReportMail(args: ReportMailContext) {
       : "",
     "",
     args.adminDeleteUrl
-      ? `管理者対応:\n管理画面（ADMIN_KEY）から削除してください\n${args.adminDeleteUrl}`
-      : `管理者対応:\nADMIN_KEY で管理画面から削除してください`,
+      ? `管理者対応:\n管理画面（Supabase Authログイン）から削除してください\n${args.adminDeleteUrl}`
+      : `管理者対応:\nSupabase Auth で管理画面にログインして削除してください`,
     args.siteUrlNote && args.publicViewUrl
       ? `\n※ URL ベース: ${args.siteUrlNote}`
       : "",
