@@ -76,9 +76,9 @@ export default function AdminAuthPanel({
 
   return (
     <section style={{ marginBottom: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#fafafa" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Admin Login</div>
+      <div style={{ fontWeight: 700, marginBottom: 8, color: "#111", fontSize: 18 }}>Admin Login</div>
       {signedInEmail ? (
-        <div style={{ marginBottom: 10, fontSize: 13 }}>
+        <div style={{ marginBottom: 10, fontSize: 13, color: "#333" }}>
           Signed in: <b>{signedInEmail}</b>
           {!canManage ? <span style={{ color: "#b00020", marginLeft: 8 }}>Not authorized admin</span> : null}
         </div>
@@ -89,7 +89,16 @@ export default function AdminAuthPanel({
           type="button"
           onClick={signInGoogle}
           disabled={busy}
-          style={{ minHeight: 40, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+          style={{
+            minHeight: 42,
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #bbb",
+            background: "#fff",
+            color: "#111",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
           Sign in with Google
         </button>
@@ -98,7 +107,16 @@ export default function AdminAuthPanel({
             type="button"
             onClick={signOut}
             disabled={busy}
-            style={{ minHeight: 40, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+            style={{
+              minHeight: 42,
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid #bbb",
+              background: "#fff",
+              color: "#111",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
             Sign out
           </button>
@@ -111,17 +129,36 @@ export default function AdminAuthPanel({
           placeholder="Email login"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{ minWidth: 280, minHeight: 40, padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc", color: "#111", background: "#fff" }}
+          style={{
+            minWidth: 280,
+            width: "min(100%, 380px)",
+            minHeight: 42,
+            padding: "8px 10px",
+            borderRadius: 6,
+            border: "1px solid #bbb",
+            color: "#111",
+            background: "#fff",
+          }}
         />
         <button
           type="submit"
           disabled={busy || !email.trim()}
-          style={{ minHeight: 40, padding: "8px 12px", borderRadius: 6, border: "1px solid #ccc", background: "#fff", cursor: "pointer" }}
+          style={{
+            minHeight: 42,
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #bbb",
+            background: "#fff",
+            color: "#111",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
           Sign in with email
         </button>
       </form>
-      {message ? <div style={{ marginTop: 8, fontSize: 12, color: "#444" }}>{message}</div> : null}
+      {message ? <div style={{ marginTop: 8, fontSize: 12, color: "#333" }}>{message}</div> : null}
+      <style>{`input::placeholder { color: #666; opacity: 1; }`}</style>
     </section>
   );
 }
