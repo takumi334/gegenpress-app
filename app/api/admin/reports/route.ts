@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-import { requireAdminUserEmail } from "@/lib/adminUser";
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,7 @@ export async function DELETE(
   context: { params: Promise<{}> }
 ) {
   try {
-    await requireAdminUserEmail();
+    requireAdminApiKey(req);
     await context.params;
 
     const idStr = req.nextUrl.searchParams.get("id");
@@ -36,7 +36,7 @@ export async function DELETE(
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     const message = e?.message ?? String(e);
-    const status = message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
+    const status = message === "UNAUTHORIZED" ? 401 : 500;
     return NextResponse.json(
       { ok: false, message },
       { status }

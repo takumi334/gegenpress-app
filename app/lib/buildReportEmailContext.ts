@@ -84,7 +84,9 @@ export async function buildReportEmailContext(
     }
   }
 
-  const adminDeleteUrl = origin ? `${origin}/admin/reports` : "";
+  const adminDeleteUrl = origin
+    ? `${origin}/admin/reports?targetId=${encodeURIComponent(String(created.targetId))}&kind=${encodeURIComponent(kind)}`
+    : "";
 
   return {
     id: created.id,

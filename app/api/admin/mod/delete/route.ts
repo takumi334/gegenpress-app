@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-import { requireAdminUserEmail } from "@/lib/adminUser";
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdminUserEmail();
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
-    return NextResponse.json({ ok: false, error: msg }, { status });
+    requireAdminApiKey(req);
+  } catch {
+    return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
 
   let payload: { reportId?: number; targetId?: number; type?: "thread" | "post" } = {};

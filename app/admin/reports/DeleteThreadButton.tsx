@@ -8,9 +8,15 @@ export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: 
       onClick={async () => {
         const action = isDeleted ? "復元" : "削除（論理削除）";
         if (!confirm(`thread #${id} を${action}します。OK？`)) return;
+        const adminKey = (localStorage.getItem("ADMIN_KEY") ?? "").trim();
+        if (!adminKey) {
+          alert("Admin key required");
+          return;
+        }
 
         const res = await fetch(`/api/admin/thread/${id}`, {
           method: isDeleted ? "PATCH" : "DELETE",
+          headers: { "x-admin-key": adminKey },
           cache: "no-store",
         });
 
@@ -19,11 +25,7 @@ export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: 
         if (!res.ok || !json.ok) {
           const message = String(json?.message ?? "");
           if (res.status === 401 || message === "UNAUTHORIZED") {
-            alert("ログインが必要です");
-            return;
-          }
-          if (res.status === 403 || message === "FORBIDDEN") {
-            alert("管理者権限がありません");
+            alert("Admin keyが違います");
             return;
           }
           alert(`失敗: ${message || res.status}`);

@@ -2,14 +2,14 @@ export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma, withPrismaRetry } from "@/lib/prisma";
-import { requireAdminUserEmail } from "@/lib/adminUser";
+import { requireAdminApiKey } from "@/lib/requireAdminApiKey";
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminUserEmail();
+    requireAdminApiKey(req);
 
     const { id: idStr } = await context.params;
     const id = Number(idStr);
@@ -45,19 +45,18 @@ export async function DELETE(
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-
-    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
+    const status = msg === "UNAUTHORIZED" ? 401 : 500;
 
     return NextResponse.json({ ok: false, message: msg }, { status });
   }
 }
 
 export async function PATCH(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminUserEmail();
+    requireAdminApiKey(req);
     const { id: idStr } = await context.params;
     const id = Number(idStr);
     if (!Number.isFinite(id)) {
@@ -81,7 +80,7 @@ export async function PATCH(
     return NextResponse.json({ ok: true, restoredThread: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    const status = msg === "UNAUTHORIZED" ? 401 : msg === "FORBIDDEN" ? 403 : 500;
+    const status = msg === "UNAUTHORIZED" ? 401 : 500;
     return NextResponse.json({ ok: false, message: msg }, { status });
   }
 }

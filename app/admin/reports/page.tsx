@@ -1,39 +1,31 @@
 import { prisma } from "@/lib/prisma";
 import { DeleteThreadButton } from "./DeleteThreadButton";
-import AdminAuthPanel from "./AdminAuthPanel";
-import { isAllowedAdminEmail } from "@/lib/adminUser";
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import AdminKeyInput from "./AdminKeyInput";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export default async function AdminReportsPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const signedInEmail = user?.email?.trim().toLowerCase() ?? null;
-  const canManage = isAllowedAdminEmail(signedInEmail);
-
-  if (!canManage) {
-    return (
-      <div style={{ padding: 24 }}>
-        <AdminAuthPanel signedInEmail={signedInEmail} canManage={false} />
-        <p style={{ color: "#444", fontSize: 14 }}>
-          管理画面は管理者ログイン後のみ利用できます。
-        </p>
-      </div>
-    );
-  }
-
+export default async function AdminReportsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ targetId?: string; kind?: string }>;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const filterTargetId = Number(sp.targetId ?? "");
+  const filterKind = (sp.kind ?? "").trim();
   const items = await prisma.report.findMany({
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-  const threadIds = items
+  const filteredItems = items.filter((r) => {
+    if (Number.isFinite(filterTargetId) && r.targetId !== filterTargetId) return false;
+    if (filterKind && r.kind !== filterKind) return false;
+    return true;
+  });
+  const threadIds = filteredItems
     .filter((r) => r.kind === "thread")
     .map((r) => Number(r.targetId))
     .filter((id) => Number.isFinite(id));
-  const postIds = items
+  const postIds = filteredItems
     .filter((r) => r.kind === "post")
     .map((r) => Number(r.targetId))
     .filter((id) => Number.isFinite(id));
@@ -63,8 +55,13 @@ export default async function AdminReportsPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <AdminAuthPanel signedInEmail={signedInEmail} canManage />
+      <AdminKeyInput />
       <h1>Reports</h1>
+      {(Number.isFinite(filterTargetId) || filterKind) ? (
+        <div style={{ marginBottom: 8, color: "#444", fontSize: 13 }}>
+          Filter: targetId={Number.isFinite(filterTargetId) ? String(filterTargetId) : "-"}, kind={filterKind || "-"}
+        </div>
+      ) : null}
 
       <table cellPadding={8} style={{ borderCollapse: "collapse", width: "100%" }}>
         <thead>
@@ -78,13 +75,14 @@ export default async function AdminReportsPage() {
             <th align="left">title</th>
             <th align="left">body</th>
             <th align="left">deletedAt</th>
+            <th align="left">status</th>
             <th align="left">url</th>
             <th align="left">action</th>
           </tr>
         </thead>
 
         <tbody>
-          {items.map((r) => {
+          {filteredItems.map((r) => {
             const thread = r.kind === "thread" ? threadMap.get(Number(r.targetId)) : null;
             const post = r.kind === "post" ? postMap.get(Number(r.targetId)) : null;
             const teamId = thread?.teamId ?? post?.thread?.teamId ?? "";
@@ -108,6 +106,7 @@ export default async function AdminReportsPage() {
                   {body}
                 </td>
                 <td>{deletedAt ? new Date(deletedAt).toLocaleString() : ""}</td>
+                <td>{deletedAt ? "削除済み" : "表示中"}</td>
                 <td>
                   {r.pageUrl ? (
                     <a href={r.pageUrl} target="_blank" rel="noreferrer">

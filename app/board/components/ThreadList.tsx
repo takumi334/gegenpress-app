@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReportButton from "@/components/ReportButton";
 import BoardLikeToggle from "@/board/components/BoardLikeToggle";
 import { getOrCreateAnonId } from "@/lib/anonId";
@@ -48,6 +48,29 @@ type Props = {
   highlightReplyId?: string;
 };
 
+function areItemsEquivalent(a: Item[], b: Item[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i];
+    const y = b[i];
+    if (
+      x.id !== y.id ||
+      x.title !== y.title ||
+      x.body !== y.body ||
+      x.translatedBody !== y.translatedBody ||
+      x.title_t !== y.title_t ||
+      x.body_t !== y.body_t ||
+      x.postCount !== y.postCount ||
+      x.threadLikeCount !== y.threadLikeCount ||
+      x.threadLikedByMe !== y.threadLikedByMe
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export default function ThreadList({
   teamId,
   initialItems,
@@ -62,15 +85,18 @@ export default function ThreadList({
   const [rawItems, setRawItems] = useState<Item[]>(initialItems ?? []);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(!initialItems);
+  const setItemsIfChanged = useCallback((next: Item[]) => {
+    setItems((prev) => (areItemsEquivalent(prev, next) ? prev : next));
+  }, []);
   useEffect(() => setMounted(true), []);
 
   // initialItems が変わったら状態を同期
   useEffect(() => {
     setRawItems(initialItems ?? []);
-    setItems(initialItems ?? []);
+    setItemsIfChanged(initialItems ?? []);
     setLoading(!initialItems);
     setErr("");
-  }, [initialItems]);
+  }, [initialItems, setItemsIfChanged]);
 
   // SSR 済み一覧に、anonId ベースの threadLikedByMe / 最新件数をマージ
   useEffect(() => {
@@ -116,7 +142,7 @@ export default function ThreadList({
     return () => {
       cancelled = true;
     };
-  }, [teamId, initialItems]);
+  }, [teamId, initialItems, setItemsIfChanged]);
 
   // /board/TEAM?highlightReply=POST_ID → スレッド詳細へ
   useEffect(() => {
@@ -198,7 +224,7 @@ export default function ThreadList({
 
         if (alive) {
           setRawItems(list);
-          setItems(list);
+          setItemsIfChanged(list);
         }
       } catch (e: any) {
         if (alive) setErr(e?.message || "load failed");
@@ -223,7 +249,7 @@ export default function ThreadList({
           title_t: i.title,
           body_t: i.body,
         }));
-        if (!cancelled) setItems(withSame);
+        if (!cancelled) setItemsIfChanged(withSame);
         return;
       }
 
@@ -233,7 +259,7 @@ export default function ThreadList({
           title_t: "",
           body_t: (i.translatedBody ?? "").trim(),
         }));
-        if (!cancelled) setItems(pending);
+        if (!cancelled) setItemsIfChanged(pending);
         return;
       }
 
@@ -257,14 +283,14 @@ export default function ThreadList({
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
             console.warn("[ThreadList] translate API not ok", res.status, data);
-            if (!cancelled) setItems(rawItems);
+            if (!cancelled) setItemsIfChanged(rawItems);
             return;
           }
           const trs: string[] = Array.isArray(data?.translations) ? data.translations : [];
           list.forEach((txt, idx) => map.set(txt, (trs[idx] ?? "").trim()));
         } catch (e) {
           console.warn("[ThreadList] translate failed", e);
-          if (!cancelled) setItems(rawItems);
+          if (!cancelled) setItemsIfChanged(rawItems);
           return;
         }
       }
@@ -278,12 +304,12 @@ export default function ThreadList({
         const body_t = dbTranslatedBody || (bodySrc ? (map.get(bodySrc) ?? "") : "");
         return { ...i, title_t, body_t };
       });
-      setItems(translated);
+      setItemsIfChanged(translated);
     })();
     return () => {
       cancelled = true;
     };
-  }, [rawItems, targetLang, sameLanguage, translationTrigger]);
+  }, [rawItems, targetLang, sameLanguage, translationTrigger, setItemsIfChanged]);
   if (loading && !rawItems.length) return <div className="text-sm text-gray-600">{t("common.loading")}</div>;
   if (err) return <div className="text-red-600">{t("common.error")}: {err}</div>;
   if (!items.length) return <div className="text-sm text-gray-600">{t("board.noPosts")}</div>;

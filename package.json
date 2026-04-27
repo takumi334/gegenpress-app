@@ -17,8 +17,6 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@paralleldrive/cuid2": "^2.2.2",
     "@prisma/client": "^6.19.2",
-    "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.104.1",
     "gif.js": "^0.2.0",
     "gifenc": "^1.0.3",
     "html2canvas": "^1.4.1",
