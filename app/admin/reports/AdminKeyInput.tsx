@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ADMIN_KEY_STORAGE_KEY, FIXED_ADMIN_PASSCODE } from "@/lib/adminPasscode";
 
-const STORAGE_KEY = "ADMIN_KEY";
+const STORAGE_KEY = ADMIN_KEY_STORAGE_KEY;
 
 export default function AdminKeyInput() {
   const [adminKey, setAdminKey] = useState("");
   const [savedMessage, setSavedMessage] = useState("");
   const hasKey = useMemo(() => adminKey.trim().length > 0, [adminKey]);
+  const isValid = useMemo(() => adminKey.trim() === FIXED_ADMIN_PASSCODE, [adminKey]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY) ?? "";
@@ -25,15 +27,16 @@ export default function AdminKeyInput() {
     localStorage.setItem(STORAGE_KEY, trimmed);
     setAdminKey(trimmed);
     setSavedMessage("Saved!");
+    window.dispatchEvent(new Event("admin-key-updated"));
   };
 
   return (
     <section style={{ marginBottom: 16, padding: 12, border: "1px solid #ddd", borderRadius: 8, background: "#fafafa" }}>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Admin key</div>
+      <div style={{ fontWeight: 700, marginBottom: 8 }}>Passcode</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <input
           type="password"
-          placeholder="Enter admin key"
+          placeholder="Enter passcode"
           value={adminKey}
           onChange={(e) => {
             setAdminKey(e.target.value);
@@ -68,10 +71,13 @@ export default function AdminKeyInput() {
             lineHeight: 1.2,
           }}
         >
-          Save key
+          Save
         </button>
       </div>
       {savedMessage ? <div style={{ marginTop: 8, fontSize: 12, color: "#333" }}>{savedMessage}</div> : null}
+      <div style={{ marginTop: 6, fontSize: 12, color: isValid ? "#0a7a33" : "#444" }}>
+        {isValid ? "削除/復元が有効です" : "パスコード 4231 を入力すると削除/復元が有効になります"}
+      </div>
       <style>{`input::placeholder { color: #666; opacity: 1; }`}</style>
     </section>
   );

@@ -1,22 +1,40 @@
 "use client";
+import { useEffect, useMemo, useState } from "react";
+import { ADMIN_KEY_STORAGE_KEY, FIXED_ADMIN_PASSCODE } from "@/lib/adminPasscode";
 
 export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: string | null }) {
   const isDeleted = Boolean(deletedAt);
+  const [adminKey, setAdminKey] = useState("");
+  const isEnabled = useMemo(() => adminKey.trim() === FIXED_ADMIN_PASSCODE, [adminKey]);
+
+  useEffect(() => {
+    const sync = () => setAdminKey((localStorage.getItem(ADMIN_KEY_STORAGE_KEY) ?? "").trim());
+    sync();
+    window.addEventListener("focus", sync);
+    window.addEventListener("admin-key-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("admin-key-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
   return (
     <button
       type="button"
+      disabled={!isEnabled}
       onClick={async () => {
         const action = isDeleted ? "復元" : "削除（論理削除）";
         if (!confirm(`thread #${id} を${action}します。OK？`)) return;
-        const adminKey = (localStorage.getItem("ADMIN_KEY") ?? "").trim();
-        if (!adminKey) {
-          alert("Admin key required");
+        if (!isEnabled) {
+          alert("Passcode 4231 required");
           return;
         }
 
         const res = await fetch(`/api/admin/thread/${id}`, {
           method: isDeleted ? "PATCH" : "DELETE",
-          headers: { "x-admin-key": adminKey },
+          headers: { "x-admin-key": adminKey.trim() },
           cache: "no-store",
         });
 
@@ -25,7 +43,7 @@ export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: 
         if (!res.ok || !json.ok) {
           const message = String(json?.message ?? "");
           if (res.status === 401 || message === "UNAUTHORIZED") {
-            alert("Admin keyが違います");
+            alert("パスコードが違います");
             return;
           }
           alert(`失敗: ${message || res.status}`);
@@ -39,6 +57,8 @@ export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: 
         color: "white",
         padding: "6px 10px",
         borderRadius: 6,
+        opacity: isEnabled ? 1 : 0.5,
+        cursor: isEnabled ? "pointer" : "not-allowed",
       }}
     >
       {isDeleted ? "復元" : "削除"}

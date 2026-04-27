@@ -1,0 +1,2 @@
+export const FIXED_ADMIN_PASSCODE = "4231";
+export const ADMIN_KEY_STORAGE_KEY = "ADMIN_KEY";

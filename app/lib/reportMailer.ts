@@ -58,7 +58,7 @@ export async function sendReportMail(args: ReportMailContext) {
       : "",
     "",
     args.adminDeleteUrl
-      ? `管理者対応:\n管理画面で削除してください\n${args.adminDeleteUrl}`
+      ? `管理者対応:\n管理画面で削除してください\n管理画面URL:\n${args.adminDeleteUrl}`
       : `管理者対応:\n管理画面で削除してください`,
     args.siteUrlNote && args.publicViewUrl
       ? `\n※ URL ベース: ${args.siteUrlNote}`

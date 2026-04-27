@@ -18,24 +18,25 @@ export function getCanonicalUrl(pathname = "/"): string {
  * localhost / 127.0.0.1 はメールに載せない（空扱い）。
  */
 export function getPublicSiteOrigin(): string {
+  const fallback = "https://gegenpress.app";
   const raw = (
     process.env.SITE_URL ??
     process.env.NEXT_PUBLIC_SITE_URL ??
-    ""
+    fallback
   ).trim();
-  if (!raw) return "";
+  if (!raw) return fallback;
 
   const withProto = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   let url: URL;
   try {
     url = new URL(withProto);
   } catch {
-    return "";
+    return fallback;
   }
 
   const host = url.hostname.toLowerCase();
   if (host === "localhost" || host === "127.0.0.1" || host === "[::1]") {
-    return "";
+    return fallback;
   }
 
   return url.origin.replace(/\/$/, "");
