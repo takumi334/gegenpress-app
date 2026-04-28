@@ -46,6 +46,8 @@ const PENDING_TACTIC_REPLY_KEY = "pendingTacticReply";
 
 type LineupBuilderProps = {
   players?: PlayerLite[];
+  slotCandidates?: Record<string, string[]>;
+  candidateNotice?: string | null;
   initialFormation?: FormationId;
   initialAssignments?: SlotAssignments;
   onSave?: (formation: FormationId, assignments: SlotAssignments) => void;
@@ -56,6 +58,8 @@ type LineupBuilderProps = {
 
 export default function LineupBuilder({
   players = [],
+  slotCandidates = {},
+  candidateNotice = null,
   initialFormation = "4-3-3",
   initialAssignments = {},
   onSave,
@@ -99,6 +103,55 @@ export default function LineupBuilder({
   const onSlotNameChange = useCallback((slotCode: string, name: string) => {
     setSlotNames((prev) => ({ ...prev, [slotCode]: name }));
   }, []);
+
+  const handleSelectPlayerFromName = useCallback(
+    (slotCode: string, name: string) => {
+      const input = name.trim();
+      if (!input) return;
+      // 選択値の実データ確認（候補一致トラブルの切り分け用）
+      console.log("selected:", input);
+      const normalize = (s: string) => s.trim().toLowerCase();
+      const ni = normalize(input);
+      const picked = players.find((p) => {
+        const pn = normalize(p.name ?? "");
+        const ptn = normalize(p.translatedName ?? "");
+        return (
+          pn.includes(ni) ||
+          ni.includes(pn) ||
+          (ptn.length > 0 && (ptn.includes(ni) || ni.includes(ptn)))
+        );
+      });
+      if (picked) {
+        setAssignments((prev) => ({ ...prev, [slotCode]: picked }));
+        return;
+      }
+      const fallbackPosition =
+        slotCode === "GK"
+          ? "GK"
+          : slotCode.includes("CB") || slotCode.includes("LB") || slotCode.includes("RB") || slotCode.includes("WB")
+            ? "DF"
+            : slotCode.includes("CM") || slotCode.includes("DM") || slotCode.includes("AM") || slotCode === "LM" || slotCode === "RM"
+              ? "MF"
+              : "FW";
+      const pseudoId = -Math.abs(
+        input
+          .split("")
+          .reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 17)
+      );
+      setAssignments((prev) => ({
+        ...prev,
+        [slotCode]: {
+          id: pseudoId,
+          name: input,
+          translatedName: input,
+          positionCategory: fallbackPosition,
+          teamName: null,
+          shirtNumber: null,
+        },
+      }));
+    },
+    [players]
+  );
 
   const onFormationChange = useCallback((id: FormationId) => {
     setFormation(id);
@@ -660,6 +713,9 @@ export default function LineupBuilder({
             formation={formationDef}
             slotNames={slotNames}
             onChange={onSlotNameChange}
+            onSelectPlayer={handleSelectPlayerFromName}
+            slotCandidates={slotCandidates}
+            candidateNotice={candidateNotice}
           />
         </div>
 

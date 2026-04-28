@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import LineupBuilder from "@components/lineup/LineupBuilder";
@@ -11,16 +11,35 @@ import { usePostTranslation } from "@/lib/PostTranslationContext";
 import { lineupBuilderUi } from "@/lib/lineupBuilderUiCopy";
 
 type SavedLineup = { id: number; formation: string; title: string | null; createdAt: string };
+type CandidateGroup = {
+  GK?: string[];
+  DF?: string[];
+  MF?: string[];
+  FW?: string[];
+  OTHER?: string[];
+};
+
+function categoryForSlot(slotCode: string): keyof CandidateGroup {
+  const c = slotCode.toUpperCase();
+  if (c === "GK") return "GK";
+  if (c.includes("CB") || c.includes("LB") || c.includes("RB") || c.includes("WB")) return "DF";
+  if (c.includes("CM") || c.includes("DM") || c.includes("AM") || c === "LM" || c === "RM") return "MF";
+  if (c.includes("ST") || c === "LW" || c === "RW" || c.includes("FW")) return "FW";
+  return "OTHER";
+}
 
 export default function LineupBuilderPage() {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
+  const teamId = searchParams.get("teamId");
   const { targetLang, sameLanguage, translationTrigger } = usePostTranslation();
   const [players, setPlayers] = useState<PlayerLite[]>([]);
   const [playersWithTranslation, setPlayersWithTranslation] = useState<PlayerLite[]>([]);
   const [savedList, setSavedList] = useState<SavedLineup[]>([]);
   const [loading, setLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
+  const [candidateGrouped, setCandidateGrouped] = useState<CandidateGroup>({});
+  const [candidateNotice, setCandidateNotice] = useState<string | null>(null);
 
   const loadSaved = useCallback(() => {
     fetch("/api/lineup")
@@ -93,6 +112,70 @@ export default function LineupBuilderPage() {
     };
   }, [players, targetLang, sameLanguage, translationTrigger]);
 
+  useEffect(() => {
+    const tid = Number(teamId ?? "");
+    if (!Number.isInteger(tid) || tid <= 0) {
+      setCandidateGrouped({});
+      setCandidateNotice(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/lineup/squad?teamId=${tid}`)
+      .then((r) => r.json())
+      .then((data: { grouped?: CandidateGroup; meta?: { message?: string | null } }) => {
+        if (cancelled) return;
+        setCandidateGrouped(data?.grouped ?? {});
+        const msg = data?.meta?.message;
+        setCandidateNotice(typeof msg === "string" && msg.length > 0 ? msg : null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCandidateGrouped({});
+        setCandidateNotice("選手候補はありません。手入力できます。");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId]);
+
+  const slotCandidates = useMemo(() => {
+    const gk = candidateGrouped.GK ?? [];
+    const df = candidateGrouped.DF ?? [];
+    const mf = candidateGrouped.MF ?? [];
+    const fw = candidateGrouped.FW ?? [];
+    const other = candidateGrouped.OTHER ?? [];
+    const bucket: Record<string, string[]> = {};
+    const allSlots = [
+      "GK",
+      "LB",
+      "RB",
+      "CB1",
+      "CB2",
+      "CB3",
+      "LWB",
+      "RWB",
+      "LM",
+      "RM",
+      "CM1",
+      "CM2",
+      "CM3",
+      "LW",
+      "RW",
+      "ST",
+      "ST1",
+      "ST2",
+    ];
+    for (const slot of allSlots) {
+      const cat = categoryForSlot(slot);
+      if (cat === "GK") bucket[slot] = gk;
+      else if (cat === "DF") bucket[slot] = [...df, ...other];
+      else if (cat === "MF") bucket[slot] = [...mf, ...other];
+      else if (cat === "FW") bucket[slot] = [...fw, ...other];
+      else bucket[slot] = other;
+    }
+    return bucket;
+  }, [candidateGrouped]);
+
   const handleSave = useCallback(
     async (formation: FormationId, assignments: SlotAssignments) => {
       setSaveStatus("saving");
@@ -102,6 +185,8 @@ export default function LineupBuilderPage() {
         assignments: Object.fromEntries(
           Object.entries(assignments)
             .filter(([, p]) => p != null)
+            // datalist fallback の仮ID（負数）は保存対象から除外
+            .filter(([, p]) => (p?.id ?? 0) > 0)
             .map(([code, p]) => [code, p!.id])
         ),
       };
@@ -147,6 +232,8 @@ export default function LineupBuilderPage() {
       <p className="text-sm text-gray-600 mb-4">{lineupBuilderUi.pageIntro}</p>
       <LineupBuilder
         players={playersWithTranslation}
+        slotCandidates={slotCandidates}
+        candidateNotice={candidateNotice}
         onSave={handleSave}
         saveLabel={lineupBuilderUi.saveLineupButton}
         returnTo={returnTo ?? undefined}

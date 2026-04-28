@@ -90,7 +90,7 @@ export async function getDbCache<T>(key: string): Promise<T | null> {
 
 export async function setDbCache<T>(
   key: string,
-  kind: "teams" | "standings" | "team_page" | "league_snapshot",
+  kind: "teams" | "standings" | "team_page" | "league_snapshot" | "squad",
   payload: T,
   ttlSeconds: number
 ): Promise<void> {
