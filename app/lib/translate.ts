@@ -95,7 +95,7 @@ async function translateChunkBatch(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ q: batch, target, format: "text" }),
-        cache: "no-store",
+        next: { revalidate: 60 * 60 * 24 },
       });
       const body = await res.text();
       if (!res.ok) {

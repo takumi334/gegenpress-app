@@ -31,7 +31,7 @@ export async function getTeamNameFromFD(param: string): Promise<string> {
 
   try {
     const data = await fdFetch<{ id: number; name?: string }>(`/teams/${id}`, {
-      cache: "no-store",
+      next: { revalidate: 60 * 30 },
     });
     return data?.name ?? param;
   } catch {

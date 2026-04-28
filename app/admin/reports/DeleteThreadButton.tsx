@@ -35,7 +35,6 @@ export function DeleteThreadButton({ id, deletedAt }: { id: number; deletedAt?: 
         const res = await fetch(`/api/admin/thread/${id}`, {
           method: isDeleted ? "PATCH" : "DELETE",
           headers: { "x-admin-key": adminKey.trim() },
-          cache: "no-store",
         });
 
         const json = await res.json().catch(() => ({}));

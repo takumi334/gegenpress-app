@@ -115,7 +115,7 @@ export default function LineupViewClient() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    fetch(`/api/lineup/${resolvedId}`, { cache: "no-store" })
+    fetch(`/api/lineup/${resolvedId}`)
       .then((r) => {
         if (!r.ok) throw new Error(lineupBuilderUi.loadFailed);
         return r.json();
@@ -161,7 +161,6 @@ export default function LineupViewClient() {
     fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
       body: JSON.stringify({ q: uniqueNames, target: targetLang }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("translate failed"))))

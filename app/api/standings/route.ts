@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getDbCacheState, setDbCache } from "@/lib/server/footballDataDbCache";
 const LEAGUES_CACHE_HEADERS: Record<string, string> = {
   "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=600",
 };
@@ -43,6 +44,15 @@ export async function GET(req: Request) {
     const season    = searchParams.get("season") ?? "2024";
 
     const code = mapLeague(leagueRaw);
+    const cacheKey = `standings:${code}:${season}`;
+    const cached = await getDbCacheState<{ table: unknown[] }>(cacheKey);
+    if (cached?.isFresh) {
+      return NextResponse.json(
+        { ...cached.payload, meta: { source: "cache", stale: false, updating: false } },
+        { status: 200, headers: LEAGUES_CACHE_HEADERS }
+      );
+    }
+
     const url  = `${FD_BASE}/competitions/${code}/standings?season=${season}`;
 
     const res = await fetch(url, {
@@ -52,6 +62,12 @@ export async function GET(req: Request) {
 
     if (!res.ok) {
       const text = await res.text();
+      if (cached) {
+        return NextResponse.json(
+          { ...cached.payload, meta: { source: cached.source, stale: true, updating: true } },
+          { status: 200, headers: LEAGUES_CACHE_HEADERS }
+        );
+      }
       return NextResponse.json(
         { error: "upstream_error", status: res.status, detail: text.slice(0,300) },
         { status: 502, headers: LEAGUES_CACHE_HEADERS }
@@ -76,9 +92,24 @@ export async function GET(req: Request) {
       gd:       r?.goalDifference,
     }));
 
-    return NextResponse.json({ table }, { status: 200, headers: LEAGUES_CACHE_HEADERS });
+    const payload = { table };
+    await setDbCache(cacheKey, "standings", payload, 60 * 30);
+    return NextResponse.json(
+      { ...payload, meta: { source: "api", stale: false, updating: false } },
+      { status: 200, headers: LEAGUES_CACHE_HEADERS }
+    );
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "internal";
+    const { searchParams } = new URL(req.url);
+    const code = mapLeague(searchParams.get("league") ?? "PL");
+    const season = searchParams.get("season") ?? "2024";
+    const cached = await getDbCacheState<{ table: unknown[] }>(`standings:${code}:${season}`).catch(() => null);
+    if (cached) {
+      return NextResponse.json(
+        { ...cached.payload, meta: { source: cached.source, stale: true, updating: true } },
+        { status: 200, headers: LEAGUES_CACHE_HEADERS }
+      );
+    }
     return NextResponse.json({ error: message }, { status: 500, headers: LEAGUES_CACHE_HEADERS });
   }
 }

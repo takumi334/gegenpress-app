@@ -15,8 +15,7 @@ export async function translateGoogle(
     headers: { "Content-Type": "application/json" },
     // q: 配列OK。ここでは単文で。
     body: JSON.stringify({ q: text, target: targetLang, source: sourceLang }),
-    // Server only
-    cache: "no-store",
+    next: { revalidate: 60 * 60 * 24 },
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");

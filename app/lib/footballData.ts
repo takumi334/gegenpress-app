@@ -70,8 +70,7 @@ export async function fetchMatchesForDateRange(params: {
   try {
     const res = await fetch(url, {
       headers: { "X-Auth-Token": API_KEY },
-      next: { revalidate: 0 },
-      cache: "no-store",
+      next: { revalidate: 60 * 5 },
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");

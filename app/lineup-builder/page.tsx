@@ -23,7 +23,7 @@ export default function LineupBuilderPage() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "ok" | "error">("idle");
 
   const loadSaved = useCallback(() => {
-    fetch("/api/lineup", { cache: "no-store" })
+    fetch("/api/lineup")
       .then((r) => r.json())
       .then((data: SavedLineup[]) => setSavedList(Array.isArray(data) ? data : []))
       .catch(() => setSavedList([]));
@@ -35,7 +35,7 @@ export default function LineupBuilderPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/lineup/players", { cache: "no-store" })
+    fetch("/api/lineup/players")
       .then((r) => r.json())
       .then((data: PlayerLite[]) => {
         if (!cancelled) setPlayers(Array.isArray(data) ? data : []);
@@ -67,7 +67,6 @@ export default function LineupBuilderPage() {
     fetch("/api/translate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      cache: "no-store",
       body: JSON.stringify({ q: uniqueNames, target: targetLang }),
     })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error("translate failed"))))

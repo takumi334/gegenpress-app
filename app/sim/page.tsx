@@ -12,7 +12,7 @@ export default function SimPage() {
   async function run() {
     setLoading(true);
     setRes(null);
-    const r = await fetch(`/api/sim?home=${home}&away=${away}`, { cache: "no-store" });
+    const r = await fetch(`/api/sim?home=${home}&away=${away}`);
     const j = await r.json();
     setRes(j);
     setLoading(false);

@@ -26,7 +26,7 @@ export default function SearchPage() {
     }
     let alive = true;
     setLoading(true);
-    fetch(`/api/search?q=${encodeURIComponent(term)}`, { cache: "no-store" })
+    fetch(`/api/search?q=${encodeURIComponent(term)}`)
       .then((r) => r.json())
       .then((data) => {
         if (!alive) return;

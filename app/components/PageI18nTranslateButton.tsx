@@ -45,7 +45,6 @@ export default function PageI18nTranslateButton() {
           target: targetLang,
           format: "text",
         }),
-        cache: "no-store",
       });
       if (!r.ok) return;
       const data = await r.json();

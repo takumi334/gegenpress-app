@@ -3,6 +3,7 @@ import "server-only";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 import { ACTIVE_LEAGUES, LEAGUES, type LeagueId } from "@/lib/leagues";
 import { COMPETITIONS } from "@/lib/footballData.constant";
+import { getDbCacheState, setDbCache } from "@/lib/server/footballDataDbCache";
 
 type StandingRow = {
   position?: number;
@@ -292,7 +293,7 @@ async function safeApiSportsFetch(
   try {
     const res = await fetch(`https://${host}${path}`, {
       headers: { "x-apisports-key": key },
-      cache: "no-store",
+      next: { revalidate: LEAGUE_REVALIDATE_SECONDS },
     });
     if (!res.ok) {
       logLeagueFetchFailure("apisports", leagueCode, path, `HTTP ${res.status}`);
@@ -313,7 +314,7 @@ async function safeApiSportsFetch(
 async function safeNewsFetch(q: string): Promise<NewsRes["items"]> {
   try {
     const url = `${getSiteUrl()}/api/news?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, { next: { revalidate: LEAGUE_REVALIDATE_SECONDS } });
     if (!res.ok) return [];
     const json = (await res.json()) as NewsRes;
     return Array.isArray(json?.items) ? json.items : [];
@@ -506,6 +507,9 @@ async function refreshLeague(code: LeagueId): Promise<void> {
       const hasData = hasAnyLeagueData(next.standings, next.fixtures);
       if (hasData || !current) {
         snapshotCache.set(code, next);
+        await setDbCache(`league_snapshot:${code}`, "league_snapshot", next, 24 * 60 * 60).catch(
+          () => undefined
+        );
       }
       // 429/emptyなどでデータが取れない時は前回成功スナップショットを維持
     } finally {
@@ -518,6 +522,23 @@ async function refreshLeague(code: LeagueId): Promise<void> {
 }
 
 export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot> {
+  const dbCached = await getDbCacheState<LeagueSnapshot>(`league_snapshot:${code}`).catch(() => null);
+  if (dbCached?.payload && snapshotHasData(dbCached.payload)) {
+    snapshotCache.set(code, dbCached.payload);
+    console.info("[leagueSnapshot] return db snapshot", {
+      leagueCode: code,
+      servedFromCache: true,
+      cacheState: dbCached.isFresh ? "db_fresh" : "db_stale",
+      source: dbCached.payload.source,
+      standingsCount: dbCached.payload.standings.length,
+      fixturesCount: dbCached.payload.fixtures?.length ?? 0,
+    });
+    if (!dbCached.isFresh) {
+      void refreshLeague(code);
+    }
+    return dbCached.payload;
+  }
+
   const cached = snapshotCache.get(code);
   const fresh = cached && snapshotHasData(cached) && Date.now() - cached.fetchedAt < TTL_MS;
   if (fresh) {

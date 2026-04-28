@@ -1,4 +1,5 @@
 import { fdFetch } from "@/lib/fd";
+import { getDbCacheState, setDbCache } from "@/lib/server/footballDataDbCache";
 
 type TeamInfo = {
   id: number;
@@ -46,6 +47,12 @@ export async function getTeamPageData(teamId: number): Promise<TeamPageData> {
     return { team: null, standings: [], recentMatches: [] };
   }
 
+  const cacheKey = `team_page:${teamId}`;
+  const cached = await getDbCacheState<TeamPageData>(cacheKey).catch(() => null);
+  if (cached?.isFresh) {
+    return cached.payload;
+  }
+
   const [team, matchesRes] = await Promise.all([
     fdFetch<TeamInfo>(`/teams/${teamId}`).catch(() => null),
     fdFetch<{ matches?: MatchInfo[] }>(
@@ -70,5 +77,12 @@ export async function getTeamPageData(teamId: number): Promise<TeamPageData> {
     standings = Array.isArray(totalTable) ? totalTable : [];
   }
 
-  return { team, standings, recentMatches };
+  const payload = { team, standings, recentMatches };
+  const hasUsableTeam = Boolean(payload.team?.id);
+  if (hasUsableTeam) {
+    await setDbCache(cacheKey, "team_page", payload, 60 * 30).catch(() => undefined);
+    return payload;
+  }
+  if (cached) return cached.payload;
+  return payload;
 }

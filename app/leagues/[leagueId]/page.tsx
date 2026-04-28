@@ -70,6 +70,10 @@ export default async function LeaguePage({
   const fixtures = Array.isArray(bundle.fixtures) ? bundle.fixtures : [];
   const news = Array.isArray(bundle.news) ? bundle.news : [];
   const title = bundle.competitionName || leagueName;
+  const teamNames = table
+    .map((row) => row?.team?.name)
+    .filter((name): name is string => typeof name === "string" && name.length > 0);
+  const isFallbackView = table.length === 0;
 
   if (process.env.NODE_ENV !== "production") {
     console.log(`[LeaguePage][${leagueCode}] render bundle`, {
@@ -87,6 +91,9 @@ export default async function LeaguePage({
       <header className="space-y-1">
         <h1 className="text-3xl font-bold">{title}</h1>
         <p className="text-sm text-gray-600">{leagueCode}</p>
+        {isFallbackView ? (
+          <p className="text-sm text-amber-700">データ更新中です。前回キャッシュまたは最小表示を継続しています。</p>
+        ) : null}
       </header>
 
       <section className="space-y-3">
@@ -123,6 +130,23 @@ export default async function LeaguePage({
                 ))}
             </tbody>
           </table>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xl font-semibold">Teams</h2>
+        {teamNames.length === 0 ? (
+          <div className="rounded border border-dashed p-4 text-sm text-gray-600">
+            チーム一覧を更新中です。
+          </div>
+        ) : (
+          <ul className="divide-y rounded border">
+            {teamNames.map((name) => (
+              <li key={name} className="p-3 text-sm">
+                {name}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

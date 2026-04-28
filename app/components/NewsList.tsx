@@ -53,10 +53,7 @@ export default function NewsList({ teamName }: { teamName: string }) {
             ? `&translate=1&lang=${encodeURIComponent(native)}`
             : "");
 
-        const r = await fetch(url, {
-          cache: "no-store",
-          signal: ac.signal,
-        });
+        const r = await fetch(url, { signal: ac.signal });
 
         // fetch 自体が失敗したときに備えて
         if (!r.ok) {

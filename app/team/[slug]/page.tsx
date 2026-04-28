@@ -28,18 +28,26 @@ export default async function TeamPage({ params }: { params: { slug: string } })
   if (!teamId) return notFound();
 
   const { team } = await getTeamPageData(teamId);
+  const hasTeam = Boolean(team?.id);
+  const displayName = team?.name ?? `Team ${teamId}`;
 
-  if (!team?.id) return notFound();
-
-  const squad = team.squad ?? [];
+  const squad = team?.squad ?? [];
 
   return (
     <main className="px-6 py-10">
       <header className="flex items-center gap-4">
-        {/* crest は SVG/PNG 混在。<img> でOK（next/imageにするなら next.config に remotePatterns を追加） */}
-        <img src={team.crest} alt={team.name} className="h-12 w-12 object-contain" />
-        <h1 className="text-2xl font-bold">{team.name}</h1>
+        {team?.crest ? (
+          // crest は SVG/PNG 混在。<img> でOK（next/imageにするなら next.config に remotePatterns を追加）
+          <img src={team.crest} alt={displayName} className="h-12 w-12 object-contain" />
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-gray-200" />
+        )}
+        <h1 className="text-2xl font-bold">{displayName}</h1>
       </header>
+
+      {!hasTeam ? (
+        <p className="mt-3 text-sm text-gray-600">データ更新中です。最新取得に失敗したため、表示を最小構成で継続しています。</p>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold">Squad</h2>

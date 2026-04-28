@@ -39,7 +39,7 @@ export default function NewsList({ teamName }: { teamName: string }) {
         const url =
           `/api/news?q=${encodeURIComponent(teamName)}` +
           (translateHeadlines ? `&translate=1&lang=${encodeURIComponent(native)}` : "");
-        const r = await fetch(url, { cache: "no-store" });
+        const r = await fetch(url);
         const data = await r.json();
         if (!cancelled && Array.isArray(data.items)) setItems(data.items);
       } finally {

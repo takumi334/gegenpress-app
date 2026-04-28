@@ -21,7 +21,7 @@ export default function NextMatchWidget({ teamId }: { teamId: number }) {
     let mounted = true;
     (async () => {
       setLoading(true);
-      const r = await fetch(`/api/next-fixture?teamId=${teamId}`, { cache: "no-store" });
+      const r = await fetch(`/api/next-fixture?teamId=${teamId}`);
       const data = await r.json();
       if (!mounted) return;
       const m = data.match ?? data.fixture ?? null

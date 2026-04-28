@@ -21,7 +21,7 @@ export type TeamLite = {
 export async function fetchTeamsByLeague(league: LeagueCode): Promise<TeamLite[]> {
   const res = await fetch(`${BASE}/competitions/${league}/teams`, {
     headers: authHeaders(),
-    cache: "no-store",
+    next: { revalidate: 60 * 30 },
   });
   if (!res.ok) throw new Error(`teams fetch failed: ${res.status}`);
   const json = await res.json();
