@@ -26,7 +26,7 @@ type LineupGifPayload = {
 };
 
 function toFormation(value: unknown): FormationId {
-  return value === "4-4-2" || value === "3-5-2" ? value : "4-3-3";
+  return value === "4-4-2" || value === "3-5-2" || value === "3-2-4-1" ? value : "4-3-3";
 }
 
 function normalizeFrame(raw: unknown, defaultSlots: SlotPositions): FrameData {

@@ -68,7 +68,10 @@ export default function LineupBuilder({
 }: LineupBuilderProps) {
   const router = useRouter();
   const safeFormation: FormationId =
-    initialFormation === "4-4-2" || initialFormation === "3-5-2" || initialFormation === "4-3-3"
+    initialFormation === "4-4-2" ||
+    initialFormation === "3-5-2" ||
+    initialFormation === "3-2-4-1" ||
+    initialFormation === "4-3-3"
       ? initialFormation
       : "4-3-3";
   const [formation, setFormation] = useState<FormationId>(safeFormation);
@@ -96,9 +99,17 @@ export default function LineupBuilder({
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ code: string; label: string } | null>(null);
+  const [panelInput, setPanelInput] = useState("");
   const boardRef = useRef<HTMLDivElement | null>(null);
 
   const formationDef = useMemo(() => getFormation(formation), [formation]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LineupBuilder] slotCandidates keys", Object.keys(slotCandidates));
+    }
+  }, [slotCandidates]);
 
   const onSlotNameChange = useCallback((slotCode: string, name: string) => {
     setSlotNames((prev) => ({ ...prev, [slotCode]: name }));
@@ -152,6 +163,23 @@ export default function LineupBuilder({
     },
     [players]
   );
+
+  const pickForSlot = useCallback(
+    (slotCode: string, name: string) => {
+      const next = name.trim();
+      if (!next) return;
+      onSlotNameChange(slotCode, next);
+      handleSelectPlayerFromName(slotCode, next);
+      setSelectedSlot(null);
+      setPanelInput("");
+    },
+    [handleSelectPlayerFromName, onSlotNameChange]
+  );
+
+  const selectedCandidates = useMemo(() => {
+    if (!selectedSlot) return [];
+    return slotCandidates[selectedSlot.code] ?? [];
+  }, [selectedSlot, slotCandidates]);
 
   const onFormationChange = useCallback((id: FormationId) => {
     setFormation(id);
@@ -696,7 +724,7 @@ export default function LineupBuilder({
   return (
     <DndContext onDragEnd={handleDragEnd} sensors={sensors}>
       <div className="flex flex-col lg:flex-row gap-4 w-full max-w-6xl mx-auto">
-        <div className="lg:w-64 shrink-0 space-y-4">
+        <div className="hidden lg:block lg:w-64 shrink-0 space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               {lineupBuilderUi.playersHeading}
@@ -796,11 +824,69 @@ export default function LineupBuilder({
               onBallChange={handleBallChange}
               onSlotPositionChange={onSlotPositionChange}
               onClearSlot={clearSlot}
+              onSlotTap={(slotCode, slotLabel) => {
+                if (process.env.NODE_ENV !== "production") {
+                  console.log("[LineupBuilder] onSlotTap", { slotCode, slotLabel });
+                }
+                setSelectedSlot({ code: slotCode, label: slotLabel });
+                setPanelInput(slotNames[slotCode] ?? "");
+              }}
               pitchMode={pitchMode}
               drawPaths={drawPaths}
               onDrawPathsChange={setDrawPaths}
             />
           </div>
+          {selectedSlot && (
+            <section className="md:rounded-lg md:border md:border-white/20 md:bg-black/20 md:p-3 fixed bottom-0 left-0 right-0 z-30 bg-[#0b1220] border-t border-white/20 p-3 md:static">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm font-semibold text-white">
+                  {selectedSlot.label} ({selectedSlot.code})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSlot(null);
+                    setPanelInput("");
+                  }}
+                  className="text-xs text-white/70 hover:text-white"
+                >
+                  close
+                </button>
+              </div>
+              {selectedCandidates.length > 0 ? (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {selectedCandidates.slice(0, 24).map((name) => (
+                    <button
+                      key={`${selectedSlot.code}-panel-${name}`}
+                      type="button"
+                      onClick={() => pickForSlot(selectedSlot.code, name)}
+                      className="rounded border border-white/20 px-2 py-1 text-xs text-white/90 hover:bg-white/10"
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-amber-300 mb-2">選手候補なし。手入力できます。</p>
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={panelInput}
+                  onChange={(e) => setPanelInput(e.target.value)}
+                  placeholder="手入力"
+                  className="flex-1 min-w-0 rounded px-2 py-1 bg-white/10 border border-white/20 text-white text-xs placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => pickForSlot(selectedSlot.code, panelInput)}
+                  className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700"
+                >
+                  適用
+                </button>
+              </div>
+            </section>
+          )}
         {gifUrl && (
           <div className="flex flex-col items-center gap-2 mt-2">
             <div className="text-[11px] text-gray-300">GIF exported (tactic.gif)</div>

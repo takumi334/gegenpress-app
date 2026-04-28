@@ -10,7 +10,7 @@ export type Slot = {
   y: number;
 };
 
-export type FormationId = "4-3-3" | "4-4-2" | "3-5-2";
+export type FormationId = "4-3-3" | "4-4-2" | "3-5-2" | "3-2-4-1";
 
 export type FormationDef = {
   id: FormationId;
@@ -68,6 +68,23 @@ const FORMATIONS: FormationDef[] = [
       { code: "RWB", label: "RWB", x: 88, y: 58 },
       { code: "ST1", label: "ST", x: 38, y: 14 },
       { code: "ST2", label: "ST", x: 62, y: 14 },
+    ],
+  },
+  {
+    id: "3-2-4-1",
+    name: "3-2-4-1",
+    slots: [
+      { code: "GK", label: "GK", x: 50, y: 92 },
+      { code: "CB1", label: "CB", x: 26, y: 78 },
+      { code: "CB2", label: "CB", x: 50, y: 80 },
+      { code: "CB3", label: "CB", x: 74, y: 78 },
+      { code: "DM1", label: "DM", x: 40, y: 62 },
+      { code: "DM2", label: "DM", x: 60, y: 62 },
+      { code: "LW", label: "LW", x: 16, y: 40 },
+      { code: "AM1", label: "AM", x: 40, y: 38 },
+      { code: "AM2", label: "AM", x: 60, y: 38 },
+      { code: "RW", label: "RW", x: 84, y: 40 },
+      { code: "ST", label: "ST", x: 50, y: 16 },
     ],
   },
 ];

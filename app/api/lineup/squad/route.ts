@@ -67,6 +67,16 @@ function hasSquad(grouped: Record<SquadCategory, string[]>): boolean {
   );
 }
 
+function groupedCounts(grouped: Record<SquadCategory, string[]>) {
+  return {
+    GK: grouped.GK.length,
+    DF: grouped.DF.length,
+    MF: grouped.MF.length,
+    FW: grouped.FW.length,
+    OTHER: grouped.OTHER.length,
+  };
+}
+
 export async function GET(req: NextRequest) {
   const teamIdRaw = req.nextUrl.searchParams.get("teamId") ?? "";
   const teamId = Number(teamIdRaw);
@@ -85,12 +95,20 @@ export async function GET(req: NextRequest) {
   const cached = await getDbCacheState<SquadPayload>(cacheKey).catch(() => null);
   if (cached) {
     const cachedHasSquad = hasSquad(cached.payload.grouped);
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[lineup/squad] cache hit", {
+        teamId,
+        source: cached.source,
+        stale: !cached.isFresh,
+        counts: groupedCounts(cached.payload.grouped),
+      });
+    }
     return NextResponse.json({
       ...cached.payload,
       meta: {
         source: cached.source,
         stale: !cached.isFresh,
-        message: cachedHasSquad ? null : "選手候補はありません。手入力できます。",
+        message: cachedHasSquad ? null : "選手候補なし。手入力できます。",
       },
     });
   }
@@ -120,6 +138,13 @@ export async function GET(req: NextRequest) {
       teamId,
       grouped: normalizeGrouped(rawSquad),
     };
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[lineup/squad] api fetched", {
+        teamId,
+        squadLength: rawSquad.length,
+        counts: groupedCounts(payload.grouped),
+      });
+    }
     await setDbCache(cacheKey, "squad", payload, TTL_SECONDS).catch(() => undefined);
     const payloadHasSquad = hasSquad(payload.grouped);
     return NextResponse.json({
@@ -127,14 +152,17 @@ export async function GET(req: NextRequest) {
       meta: {
         source: "api",
         stale: false,
-        message: payloadHasSquad ? null : "選手候補はありません。手入力できます。",
+        message: payloadHasSquad ? null : "選手候補なし。手入力できます。",
       },
     });
   } catch {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[lineup/squad] api failed", { teamId });
+    }
     return NextResponse.json({
       teamId,
       grouped: EMPTY_GROUPED,
-      meta: { source: "none", stale: false, message: "選手候補はありません。手入力できます。" },
+      meta: { source: "none", stale: false, message: "選手候補なし。手入力できます。" },
     });
   }
 }

@@ -12,6 +12,7 @@ const OPTIONS: { id: FormationId; label: string }[] = [
   { id: "4-3-3", label: "4-3-3" },
   { id: "4-4-2", label: "4-4-2" },
   { id: "3-5-2", label: "3-5-2" },
+  { id: "3-2-4-1", label: "3-2-4-1" },
 ];
 
 export default function FormationSelector({ value, onChange }: FormationSelectorProps) {

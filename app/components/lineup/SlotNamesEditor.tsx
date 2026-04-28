@@ -38,23 +38,35 @@ export default function SlotNamesEditor({
             <span className="w-8 shrink-0 font-medium text-white/80">
               {slot.label}
             </span>
-            <input
-              type="text"
-              value={slotNames[slot.code] ?? ""}
-              onChange={(e) => {
-                const next = e.target.value;
-                onChange(slot.code, next);
-                onSelectPlayer?.(slot.code, next);
-              }}
-              list={`slot-candidates-${slot.code}`}
-              placeholder={lineupBuilderUi.namePlaceholder}
-              className="flex-1 min-w-0 rounded px-2 py-1 bg-white/10 border border-white/20 text-white text-xs placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-green-500"
-            />
-            <datalist id={`slot-candidates-${slot.code}`}>
-              {(slotCandidates[slot.code] ?? []).map((name) => (
-                <option key={`${slot.code}-${name}`} value={name} />
-              ))}
-            </datalist>
+            {(slotCandidates[slot.code] ?? []).length > 0 ? (
+              <div className="hidden md:flex flex-wrap gap-1">
+                {(slotCandidates[slot.code] ?? []).slice(0, 4).map((name) => (
+                  <button
+                    key={`${slot.code}-quick-${name}`}
+                    type="button"
+                    onClick={() => {
+                      onChange(slot.code, name);
+                      onSelectPlayer?.(slot.code, name);
+                    }}
+                    className="rounded border border-white/20 px-1.5 py-0.5 text-[10px] text-white/80 hover:bg-white/10"
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={slotNames[slot.code] ?? ""}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  onChange(slot.code, next);
+                  onSelectPlayer?.(slot.code, next);
+                }}
+                placeholder="手入力"
+                className="w-20 min-w-0 rounded px-1.5 py-0.5 bg-white/10 border border-white/20 text-white text-[10px] placeholder-white/50 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
+            )}
           </label>
         ))}
       </div>

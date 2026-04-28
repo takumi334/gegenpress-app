@@ -36,6 +36,7 @@ type PitchBoardProps = {
   onBallChange: (ball: Ball) => void;
   onSlotPositionChange: (slotCode: string, x: number, y: number) => void;
   onClearSlot?: (positionCode: string) => void;
+  onSlotTap?: (slotCode: string, slotLabel: string) => void;
   pitchMode?: PitchMode;
   drawPaths?: DrawPath[];
   onDrawPathsChange?: (paths: DrawPath[]) => void;
@@ -50,6 +51,7 @@ export default function PitchBoard({
   onBallChange,
   onSlotPositionChange,
   onClearSlot,
+  onSlotTap,
   pitchMode = "cursor",
   drawPaths = [],
   onDrawPathsChange = () => {},
@@ -89,21 +91,33 @@ export default function PitchBoard({
     [isCursorMode, onBallChange]
   );
 
-  const handleMarkerPointerDown = useCallback((slotCode: string, e: React.PointerEvent) => {
+  const handleMarkerPointerDown = useCallback((slotCode: string, slotLabel: string, e: React.PointerEvent) => {
     if (!isCursorMode) return;
     e.preventDefault();
     setDraggingSlot(slotCode);
     draggingSlotRef.current = slotCode;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
 
     const onMove = (moveEvent: PointerEvent) => {
       const slot = draggingSlotRef.current;
       if (!slot || !containerRef.current) return;
+      if (Math.abs(moveEvent.clientX - startX) > 4 || Math.abs(moveEvent.clientY - startY) > 4) {
+        moved = true;
+      }
       const rect = containerRef.current.getBoundingClientRect();
       const { x, y } = convertClientToPitchPercent(moveEvent.clientX, moveEvent.clientY, rect);
       onSlotPositionChange(slot, x, y);
     };
 
     const onUp = () => {
+      if (!moved) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[PitchBoard] tapped slot", { slotCode, slotLabel });
+        }
+        onSlotTap?.(slotCode, slotLabel);
+      }
       setDraggingSlot(null);
       draggingSlotRef.current = null;
       window.removeEventListener("pointermove", onMove);
@@ -114,7 +128,7 @@ export default function PitchBoard({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
-  }, [onSlotPositionChange, isCursorMode]);
+  }, [onSlotPositionChange, isCursorMode, onSlotTap]);
 
   return (
     <div
@@ -161,7 +175,13 @@ export default function PitchBoard({
               x={pos.x}
               y={pos.y}
               isDragging={draggingSlot === slot.code}
-              onPointerDown={(e) => handleMarkerPointerDown(slot.code, e)}
+              onPointerDown={(e) => handleMarkerPointerDown(slot.code, slot.label, e)}
+              onTap={() => {
+                if (process.env.NODE_ENV !== "production") {
+                  console.log("[PitchBoard] tapped slot", { slotCode: slot.code, slotLabel: slot.label });
+                }
+                onSlotTap?.(slot.code, slot.label);
+              }}
               onClear={onClearSlot}
             />
           );

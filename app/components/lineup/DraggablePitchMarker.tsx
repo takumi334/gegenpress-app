@@ -12,6 +12,7 @@ type DraggablePitchMarkerProps = {
   y: number;
   isDragging: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
+  onTap?: () => void;
   onClear?: (positionCode: string) => void;
 };
 
@@ -26,6 +27,7 @@ export default function DraggablePitchMarker({
   y,
   isDragging,
   onPointerDown,
+  onTap,
   onClear,
 }: DraggablePitchMarkerProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -53,6 +55,10 @@ export default function DraggablePitchMarker({
       onPointerDown={(e) => {
         e.preventDefault();
         onPointerDown(e);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onTap?.();
       }}
     >
       {/* 丸の中に role */}

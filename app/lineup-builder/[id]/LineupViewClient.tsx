@@ -41,7 +41,10 @@ function normalizeLineupDetail(raw: unknown): LineupDetail | null {
 
   const formationRaw = o.formation;
   const formation =
-    formationRaw === "4-4-2" || formationRaw === "3-5-2" || formationRaw === "4-3-3"
+    formationRaw === "4-4-2" ||
+    formationRaw === "3-5-2" ||
+    formationRaw === "3-2-4-1" ||
+    formationRaw === "4-3-3"
       ? formationRaw
       : typeof formationRaw === "string" && formationRaw
         ? formationRaw
@@ -216,7 +219,7 @@ export default function LineupViewClient() {
 
   const formationId: FormationId = useMemo(() => {
     const f = displayData?.formation;
-    if (f === "4-4-2" || f === "3-5-2") return f;
+    if (f === "4-4-2" || f === "3-5-2" || f === "3-2-4-1") return f;
     return "4-3-3";
   }, [displayData?.formation]);
 

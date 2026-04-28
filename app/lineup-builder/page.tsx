@@ -114,6 +114,9 @@ export default function LineupBuilderPage() {
 
   useEffect(() => {
     const tid = Number(teamId ?? "");
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LineupBuilderPage] teamId", { raw: teamId, parsed: tid });
+    }
     if (!Number.isInteger(tid) || tid <= 0) {
       setCandidateGrouped({});
       setCandidateNotice(null);
@@ -124,14 +127,28 @@ export default function LineupBuilderPage() {
       .then((r) => r.json())
       .then((data: { grouped?: CandidateGroup; meta?: { message?: string | null } }) => {
         if (cancelled) return;
-        setCandidateGrouped(data?.grouped ?? {});
+        const grouped = data?.grouped ?? {};
+        setCandidateGrouped(grouped);
         const msg = data?.meta?.message;
         setCandidateNotice(typeof msg === "string" && msg.length > 0 ? msg : null);
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[LineupBuilderPage] squad response", {
+            teamId: tid,
+            groupedCounts: {
+              GK: grouped.GK?.length ?? 0,
+              DF: grouped.DF?.length ?? 0,
+              MF: grouped.MF?.length ?? 0,
+              FW: grouped.FW?.length ?? 0,
+              OTHER: grouped.OTHER?.length ?? 0,
+            },
+            notice: msg ?? null,
+          });
+        }
       })
       .catch(() => {
         if (cancelled) return;
         setCandidateGrouped({});
-        setCandidateNotice("選手候補はありません。手入力できます。");
+        setCandidateNotice("選手候補なし。手入力できます。");
       });
     return () => {
       cancelled = true;
@@ -172,6 +189,9 @@ export default function LineupBuilderPage() {
       else if (cat === "MF") bucket[slot] = [...mf, ...other];
       else if (cat === "FW") bucket[slot] = [...fw, ...other];
       else bucket[slot] = other;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[LineupBuilderPage] slotCandidates keys", Object.keys(bucket));
     }
     return bucket;
   }, [candidateGrouped]);
