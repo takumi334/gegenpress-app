@@ -172,8 +172,8 @@ export type TeamPredictPayload = {
     venue: string | null;
     status: string | null;
     teams: {
-      home: { name: string | null; logo: string | null };
-      away: { name: string | null; logo: string | null };
+      home: { id?: number; name: string | null; logo: string | null };
+      away: { id?: number; name: string | null; logo: string | null };
     };
   };
   xg: { home: number; away: number };

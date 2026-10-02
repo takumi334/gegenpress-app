@@ -1,6 +1,6 @@
 // app/lib/team-resolver.ts
 import slugify from "slugify";
-import { fdFetch } from "./fd";
+import { getDbCacheState } from "@/lib/server/footballDataDbCache";
 
 /** 任意の文字列をURLセーフなスラッグへ */
 export function toTeamSlug(input: string): string {
@@ -55,16 +55,18 @@ export function resolveTeamId(slugOrName: string): number | null {
   return SLUG_TO_ID[key] ?? null;
 }
 
-/** Football-Data API からチーム名を取得する */
+/** 永続キャッシュからチーム名を取得する（ページ閲覧時は外部APIを呼ばない）。 */
 export async function getTeamNameFromFD(slugOrId: string): Promise<string> {
   const id = resolveTeamId(slugOrId) ?? Number(slugOrId);
   if (!id || Number.isNaN(id)) return slugOrId; // 取得できない場合はそのまま返す
 
   try {
-    const data = await fdFetch<{ name: string }>(`/teams/${id}`, { next: { revalidate: 60 } });
-    return data.name;
+    const cached = await getDbCacheState<{ team?: { name?: string } }>(
+      `team_page:${id}`
+    );
+    return cached?.payload.team?.name ?? slugOrId;
   } catch (err) {
-    console.error("getTeamNameFromFD error:", err);
+    console.error("getTeamNameFromFD cache read error:", err);
     return slugOrId;
   }
 }

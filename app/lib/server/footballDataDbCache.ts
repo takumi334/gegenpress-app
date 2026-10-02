@@ -41,6 +41,14 @@ export type DbCacheState<T> = {
   source: "db" | "memory";
 };
 
+export type FootballDataCacheKind =
+  | "teams"
+  | "standings"
+  | "team_page"
+  | "league_snapshot"
+  | "league_failure"
+  | "squad";
+
 export async function getDbCacheState<T>(key: string): Promise<DbCacheState<T> | null> {
   await ensureTable();
   const rows = await withPrismaRetry("football_data_cache read", () =>
@@ -90,7 +98,7 @@ export async function getDbCache<T>(key: string): Promise<T | null> {
 
 export async function setDbCache<T>(
   key: string,
-  kind: "teams" | "standings" | "team_page" | "league_snapshot" | "squad",
+  kind: FootballDataCacheKind,
   payload: T,
   ttlSeconds: number
 ): Promise<void> {
@@ -121,4 +129,43 @@ export async function setDbCache<T>(
     fetchedAt: now,
     expiresAt,
   });
+}
+
+/**
+ * Atomically acquires a short-lived cross-instance lease.
+ * Returns false while another serverless instance still owns a fresh lease.
+ */
+export async function acquireDbCacheLease<T>(
+  key: string,
+  kind: FootballDataCacheKind,
+  payload: T,
+  ttlSeconds: number
+): Promise<boolean> {
+  await ensureTable();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
+  const rows = await withPrismaRetry("football_data_cache acquire lease", () =>
+    prisma.$queryRawUnsafe<Array<{ cache_key: string }>>(
+      `
+        INSERT INTO ${CACHE_TABLE} (cache_key, cache_kind, payload, fetched_at, expires_at)
+        VALUES ($1, $2, $3::jsonb, $4, $5)
+        ON CONFLICT (cache_key)
+        DO UPDATE SET
+          cache_kind = EXCLUDED.cache_kind,
+          payload = EXCLUDED.payload,
+          fetched_at = EXCLUDED.fetched_at,
+          expires_at = EXCLUDED.expires_at
+        WHERE ${CACHE_TABLE}.expires_at <= $4
+        RETURNING cache_key
+      `,
+      key,
+      kind,
+      JSON.stringify(payload),
+      now,
+      expiresAt
+    )
+  );
+  if (rows.length === 0) return false;
+  memoryCache.set(key, { payload, fetchedAt: now, expiresAt });
+  return true;
 }

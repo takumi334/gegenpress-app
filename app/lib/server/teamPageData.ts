@@ -1,5 +1,5 @@
-import { fdFetch } from "@/lib/fd";
-import { getDbCacheState, setDbCache } from "@/lib/server/footballDataDbCache";
+import { getDbCacheState } from "@/lib/server/footballDataDbCache";
+import { cache } from "react";
 
 type TeamInfo = {
   id: number;
@@ -29,60 +29,20 @@ type StandingRow = {
   goalsAgainst: number;
 };
 
-type StandingsPayload = {
-  standings?: Array<{
-    type?: string;
-    table?: StandingRow[];
-  }>;
-};
-
 export type TeamPageData = {
   team: TeamInfo | null;
   standings: StandingRow[];
   recentMatches: MatchInfo[];
 };
 
-export async function getTeamPageData(teamId: number): Promise<TeamPageData> {
+async function readTeamPageData(teamId: number): Promise<TeamPageData> {
   if (!Number.isFinite(teamId) || teamId <= 0) {
     return { team: null, standings: [], recentMatches: [] };
   }
-
-  const cacheKey = `team_page:${teamId}`;
-  const cached = await getDbCacheState<TeamPageData>(cacheKey).catch(() => null);
-  if (cached?.isFresh) {
-    return cached.payload;
-  }
-
-  const [team, matchesRes] = await Promise.all([
-    fdFetch<TeamInfo>(`/teams/${teamId}`).catch(() => null),
-    fdFetch<{ matches?: MatchInfo[] }>(
-      `/teams/${teamId}/matches?status=FINISHED&limit=5`,
-    ).catch(() => ({ matches: [] })),
-  ]);
-
-  const recentMatches = Array.isArray(matchesRes?.matches) ? matchesRes.matches : [];
-  const competitionId =
-    recentMatches[0]?.competition?.id ??
-    team?.activeCompetitions?.[0]?.id;
-
-  let standings: StandingRow[] = [];
-  if (competitionId) {
-    const standingsRes = await fdFetch<StandingsPayload>(
-      `/competitions/${competitionId}/standings`,
-    ).catch(() => null);
-    const totalTable =
-      standingsRes?.standings?.find((s) => s?.type === "TOTAL")?.table ??
-      standingsRes?.standings?.[0]?.table ??
-      [];
-    standings = Array.isArray(totalTable) ? totalTable : [];
-  }
-
-  const payload = { team, standings, recentMatches };
-  const hasUsableTeam = Boolean(payload.team?.id);
-  if (hasUsableTeam) {
-    await setDbCache(cacheKey, "team_page", payload, 60 * 30).catch(() => undefined);
-    return payload;
-  }
-  if (cached) return cached.payload;
-  return payload;
+  const cached = await getDbCacheState<TeamPageData>(`team_page:${teamId}`).catch(() => null);
+  return cached?.payload ?? { team: null, standings: [], recentMatches: [] };
 }
+
+// Page rendering is cache-only. generateMetadata and the page body also share
+// this React request cache, so neither path can trigger an upstream refresh.
+export const getTeamPageData = cache(readTeamPageData);

@@ -1,11 +1,11 @@
 /**
- * football-data.org v4 API クライアント（試合1時間前スレッド自動作成用）
- * レート制限に配慮し、必要最低限のリクエストのみ行う。
+ * 試合スレッド自動生成用の保存済みリーグ試合データ読み取り。
+ * キャッシュ不足・DB障害時も外部APIにはフォールバックしない。
  */
-
-const BASE_URL =
-  process.env.FOOTBALL_DATA_BASE_URL ?? process.env.FD_BASE ?? "https://api.football-data.org/v4";
-const API_KEY = process.env.FOOTBALL_DATA_API_KEY ?? "";
+import "server-only";
+import { Prisma } from "@prisma/client";
+import { ACTIVE_LEAGUES, LEAGUES } from "@/lib/leagues";
+import { prisma, withPrismaRetry } from "@/lib/prisma";
 
 /** v4 API の試合レスポンスの生型（必要な項目のみ） */
 export type FootballDataMatchRaw = {
@@ -44,11 +44,14 @@ function toMatchLite(m: FootballDataMatchRaw): MatchLite {
   };
 }
 
-type MatchesResponse = { matches?: FootballDataMatchRaw[] };
+type SnapshotRow = {
+  cache_key: string;
+  payload: { source?: string; fixtures?: FootballDataMatchRaw[] } | null;
+};
 
 /**
- * 指定日付範囲・大会で試合一覧を取得する。
- * レート制限対策: 1リクエストで済むよう competitions をまとめて指定する。
+ * 指定したUTC日付範囲（両端を含む）・有効大会の保存済み試合を返す。
+ * 期限切れの正常スナップショットも利用するが、取得・更新は開始しない。
  */
 export async function fetchMatchesForDateRange(params: {
   dateFrom: string; // YYYY-MM-DD
@@ -56,32 +59,46 @@ export async function fetchMatchesForDateRange(params: {
   competitions: string[]; // 大会コードの配列 e.g. ["PL", "CL"]
 }): Promise<MatchLite[]> {
   const { dateFrom, dateTo, competitions } = params;
-  if (!API_KEY) {
-    console.error("[footballData] FOOTBALL_DATA_API_KEY is not set");
-    return [];
-  }
-  const q = new URLSearchParams();
-  q.set("dateFrom", dateFrom);
-  q.set("dateTo", dateTo);
-  if (competitions.length > 0) {
-    q.set("competitions", competitions.join(","));
-  }
-  const url = `${BASE_URL.replace(/\/$/, "")}/matches?${q.toString()}`;
+  const from = Date.parse(`${dateFrom}T00:00:00Z`);
+  const to = Date.parse(`${dateTo}T00:00:00Z`);
+  if (!Number.isFinite(from) || !Number.isFinite(to) || from > to) return [];
+  const keys = ACTIVE_LEAGUES
+    .filter((code) => competitions.includes(code))
+    .map((code) => `league_snapshot:${code}`);
+  if (keys.length === 0) return [];
+
   try {
-    const res = await fetch(url, {
-      headers: { "X-Auth-Token": API_KEY },
-      next: { revalidate: 60 * 5 },
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("[footballData] API error", res.status, res.statusText, text.slice(0, 200));
-      return [];
+    const rows = await withPrismaRetry("auto match threads read league snapshots", () =>
+      prisma.$queryRaw<SnapshotRow[]>(Prisma.sql`
+        SELECT cache_key, payload FROM football_data_cache
+        WHERE cache_kind = 'league_snapshot'
+          AND cache_key IN (${Prisma.join(keys)})
+      `)
+    );
+    const matches = new Map<number, MatchLite>();
+    for (const row of rows) {
+      if (!keys.includes(row.cache_key) || row.payload?.source !== "fd") continue;
+      const code = row.cache_key.slice("league_snapshot:".length);
+      for (const match of Array.isArray(row.payload.fixtures) ? row.payload.fixtures : []) {
+        // Only football-data IDs with known teams are safe for thread creation.
+        // Other providers and incomplete cached fixtures must not create team 0 posts.
+        if (!match || !Number.isInteger(match.id) || match.id <= 0 ||
+            !Number.isInteger(match.homeTeam?.id) || (match.homeTeam?.id ?? 0) <= 0 ||
+            !Number.isInteger(match.awayTeam?.id) || (match.awayTeam?.id ?? 0) <= 0 ||
+            typeof match.utcDate !== "string") continue;
+        const kickoff = Date.parse(match.utcDate);
+        if (!Number.isFinite(kickoff) || kickoff < from || kickoff >= to + 86_400_000) continue;
+        if (match.competition?.code && match.competition.code !== code) continue;
+        matches.set(match.id, {
+          ...toMatchLite(match),
+          competitionCode: code,
+          competitionName: match.competition?.name || LEAGUES.find((league) => league.id === code)?.name || code,
+        });
+      }
     }
-    const data = (await res.json()) as MatchesResponse;
-    const list = data.matches ?? [];
-    return list.map(toMatchLite);
+    return [...matches.values()].sort((a, b) => Date.parse(a.utcDate) - Date.parse(b.utcDate));
   } catch (e) {
-    console.error("[footballData] fetch error", url, e);
+    console.error("[footballData] stored matches unavailable; skipping auto generation", e);
     return [];
   }
 }

@@ -3,7 +3,11 @@ import "server-only";
 import { getSiteUrl } from "@/lib/publicSiteUrl";
 import { ACTIVE_LEAGUES, LEAGUES, type LeagueId } from "@/lib/leagues";
 import { COMPETITIONS } from "@/lib/footballData.constant";
-import { getDbCacheState, setDbCache } from "@/lib/server/footballDataDbCache";
+import {
+  acquireDbCacheLease,
+  getDbCacheState,
+  setDbCache,
+} from "@/lib/server/footballDataDbCache";
 
 type StandingRow = {
   position?: number;
@@ -45,7 +49,13 @@ const ACTIVE_LEAGUE_SET = new Set<LeagueId>(ACTIVE_LEAGUES);
 const APISPORTS_SEASON = "2024";
 const FOOTBALL_DATA_BASE = (process.env.FD_BASE ?? "https://api.football-data.org/v4").replace(/\/$/, "");
 const FOOTBALL_DATA_KEY = process.env.FOOTBALL_DATA_API_KEY ?? "";
-const LEAGUE_REVALIDATE_SECONDS = 5 * 60;
+// League tables and scheduled fixtures do not need minute-level refreshes. Keep
+// Next's fetch cache aligned with the durable snapshot cache so cold Vercel
+// instances do not independently spend the upstream quota.
+const LEAGUE_REVALIDATE_SECONDS = 24 * 60 * 60;
+const FAILURE_CACHE_SECONDS = 10 * 60;
+const REFRESH_LEASE_SECONDS = 60;
+const GLOBAL_REFRESH_LEASE_SECONDS = 60;
 const FD_TIMEOUT_MS = 10_000;
 const INVESTIGATION_LEAGUES = new Set<LeagueId>(["PL", "SA", "BL1"]);
 const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
@@ -54,14 +64,21 @@ const APISPORTS_LEAGUE_ID: Record<LeagueId, string> = {
   SA: "135",
   BL1: "78",
   FL1: "61",
-  DED: "88",
-  PPL: "94",
 };
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 
 const snapshotCache = new Map<LeagueId, LeagueSnapshot>();
 const inflight = new Map<LeagueId, Promise<void>>();
+
+type LeagueFailureCache = {
+  state: "refreshing" | "failed";
+  recordedAt: number;
+};
+
+function failureCacheKey(code: LeagueId): string {
+  return `league_snapshot_failure:${code}`;
+}
 
 function leagueName(code: LeagueId): string {
   return LEAGUES.find((l) => l.id === code)?.name ?? code;
@@ -323,28 +340,26 @@ async function safeNewsFetch(q: string): Promise<NewsRes["items"]> {
   }
 }
 
-async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promise<LeagueSnapshot> {
+async function fetchOneLeague(
+  code: LeagueId,
+  previous?: LeagueSnapshot
+): Promise<LeagueSnapshot | null> {
   const competitionId = COMPETITIONS[code];
   const name = leagueName(code);
 
   if (!ACTIVE_LEAGUE_SET.has(code)) {
-    const snapshot: LeagueSnapshot = {
-      standings: [],
-      fixtures: [],
-      news: [],
-      competitionName: name,
-      fetchedAt: Date.now(),
-      source: "empty",
-    };
     if (process.env.NODE_ENV !== "production") {
       console.log({ league: code, standings: 0, fixtures: 0, teams: 0 });
     }
-    return snapshot;
+    return null;
   }
 
   const [standingsFd, fixturesFd, news] = await Promise.all([
     safeFdFetch<StandingsRes>(code, `/competitions/${competitionId}/standings`),
-    safeFdFetch<FixturesRes>(code, `/competitions/${competitionId}/matches?status=SCHEDULED&limit=8`),
+    // One competition-matches request still covers the entire fixture set.
+    // Keeping finished matches in the same response enables prediction/result
+    // comparison without spending an additional football-data.org request.
+    safeFdFetch<FixturesRes>(code, `/competitions/${competitionId}/matches`),
     safeNewsFetch(name),
   ]);
 
@@ -354,6 +369,7 @@ async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promis
   const fixturesFromFd = Array.isArray(fixturesFd?.matches) ? fixturesFd.matches : [];
   const mergedStandings = tableFd.length > 0 ? tableFd : previous?.standings ?? [];
   const mergedFixtures = fixturesFromFd.length > 0 ? fixturesFromFd : previous?.fixtures ?? [];
+  const fdResponded = standingsFd !== null || fixturesFd !== null;
   const standingsUsedPrevious = tableFd.length === 0 && (previous?.standings?.length ?? 0) > 0;
   const fixturesUsedPrevious = fixturesFromFd.length === 0 && (previous?.fixtures?.length ?? 0) > 0;
   console.info("[leagueSnapshot][fd] merge result", {
@@ -378,7 +394,7 @@ async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promis
     });
   }
 
-  if (hasAnyLeagueData(mergedStandings, mergedFixtures)) {
+  if (fdResponded && hasAnyLeagueData(mergedStandings, mergedFixtures)) {
     const snapshot: LeagueSnapshot = {
       standings: mergedStandings,
       fixtures: mergedFixtures,
@@ -444,7 +460,8 @@ async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promis
 
   const mergedApiStandings = standings.length > 0 ? standings : previous?.standings ?? [];
   const mergedApiFixtures = fixtures.length > 0 ? fixtures : previous?.fixtures ?? [];
-  if (hasAnyLeagueData(mergedApiStandings, mergedApiFixtures)) {
+  const apiSportsResponded = standingsApi !== null || fixturesApi !== null;
+  if (apiSportsResponded && hasAnyLeagueData(mergedApiStandings, mergedApiFixtures)) {
     const snapshot: LeagueSnapshot = {
       standings: mergedApiStandings,
       fixtures: mergedApiFixtures,
@@ -471,14 +488,6 @@ async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promis
     return snapshot;
   }
 
-  const snapshot: LeagueSnapshot = {
-    standings: [],
-    fixtures: [],
-    news,
-    competitionName: name,
-    fetchedAt: Date.now(),
-    source: "empty",
-  };
   if (process.env.NODE_ENV !== "production") {
     console.warn(`[leagueSnapshot][${code}] no data after all providers`, {
       fdCompetitionId: competitionId,
@@ -486,14 +495,14 @@ async function fetchOneLeague(code: LeagueId, previous?: LeagueSnapshot): Promis
     });
     console.log({ league: code, standings: 0, fixtures: 0, teams: 0 });
     console.log(`[leagueSnapshot][${code}] normalized`, {
-      source: snapshot.source,
-      competitionName: snapshot.competitionName,
+      source: "empty",
+      competitionName: name,
       standingsCount: 0,
       fixturesCount: 0,
       teamsCount: 0,
     });
   }
-  return snapshot;
+  return null;
 }
 
 async function refreshLeague(code: LeagueId): Promise<void> {
@@ -501,17 +510,38 @@ async function refreshLeague(code: LeagueId): Promise<void> {
   if (current && snapshotHasData(current) && Date.now() - current.fetchedAt < TTL_MS) return;
   if (inflight.has(code)) return inflight.get(code);
 
+  const leaseAcquired = await acquireDbCacheLease(
+    failureCacheKey(code),
+    "league_failure",
+    { state: "refreshing", recordedAt: Date.now() } satisfies LeagueFailureCache,
+    REFRESH_LEASE_SECONDS
+  ).catch(() => false);
+  if (!leaseAcquired) {
+    console.info("[leagueSnapshot] refresh suppressed", {
+      leagueCode: code,
+    });
+    return;
+  }
+
   const job = (async () => {
     try {
       const next = await fetchOneLeague(code, current);
-      const hasData = hasAnyLeagueData(next.standings, next.fixtures);
-      if (hasData || !current) {
+      if (next && snapshotHasData(next)) {
         snapshotCache.set(code, next);
         await setDbCache(`league_snapshot:${code}`, "league_snapshot", next, 24 * 60 * 60).catch(
           () => undefined
         );
+        return;
       }
-      // 429/emptyなどでデータが取れない時は前回成功スナップショットを維持
+
+      // Never overwrite the last successful snapshot with an empty/error
+      // response. Persist only a short negative cache to suppress retries.
+      await setDbCache(
+        failureCacheKey(code),
+        "league_failure",
+        { state: "failed", recordedAt: Date.now() } satisfies LeagueFailureCache,
+        FAILURE_CACHE_SECONDS
+      ).catch(() => undefined);
     } finally {
       inflight.delete(code);
     }
@@ -519,6 +549,60 @@ async function refreshLeague(code: LeagueId): Promise<void> {
 
   inflight.set(code, job);
   await job;
+}
+
+export type LeagueRefreshJobResult = {
+  status: "refreshed" | "failed" | "idle" | "busy" | "disabled";
+  leagueCode: LeagueId | null;
+  footballDataRequests: number;
+};
+
+/**
+ * Refreshes at most one due league. This is intentionally callable only from
+ * the protected cron route; page rendering must remain cache-only.
+ */
+export async function refreshNextLeagueSnapshot(): Promise<LeagueRefreshJobResult> {
+  if (!FOOTBALL_DATA_KEY) {
+    return { status: "disabled", leagueCode: null, footballDataRequests: 0 };
+  }
+
+  const globalLease = await acquireDbCacheLease(
+    "league_snapshot_refresh:global",
+    "league_failure",
+    { state: "refreshing", recordedAt: Date.now() } satisfies LeagueFailureCache,
+    GLOBAL_REFRESH_LEASE_SECONDS
+  ).catch(() => false);
+  if (!globalLease) {
+    return { status: "busy", leagueCode: null, footballDataRequests: 0 };
+  }
+
+  for (const code of ACTIVE_LEAGUES) {
+    const cached = await getDbCacheState<LeagueSnapshot>(`league_snapshot:${code}`).catch(
+      () => null
+    );
+    if (cached?.isFresh && snapshotHasData(cached.payload)) continue;
+
+    const recentFailure = await getDbCacheState<LeagueFailureCache>(failureCacheKey(code)).catch(
+      () => null
+    );
+    if (recentFailure?.isFresh) continue;
+
+    if (cached?.payload && snapshotHasData(cached.payload)) {
+      snapshotCache.set(code, cached.payload);
+    }
+    await refreshLeague(code);
+
+    const refreshed = await getDbCacheState<LeagueSnapshot>(`league_snapshot:${code}`).catch(
+      () => null
+    );
+    return {
+      status: refreshed?.isFresh && snapshotHasData(refreshed.payload) ? "refreshed" : "failed",
+      leagueCode: code,
+      footballDataRequests: 2,
+    };
+  }
+
+  return { status: "idle", leagueCode: null, footballDataRequests: 0 };
 }
 
 export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot> {
@@ -533,9 +617,6 @@ export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot>
       standingsCount: dbCached.payload.standings.length,
       fixturesCount: dbCached.payload.fixtures?.length ?? 0,
     });
-    if (!dbCached.isFresh) {
-      void refreshLeague(code);
-    }
     return dbCached.payload;
   }
 
@@ -566,19 +647,8 @@ export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot>
     return cached;
   }
 
-  // 対象リーグのみ同期取得（他リーグ背景更新でレートを消費しない）
-  await refreshLeague(code);
-  const afterRefresh = snapshotCache.get(code);
-  if (afterRefresh) {
-    console.info("[leagueSnapshot] return refreshed snapshot", {
-      leagueCode: code,
-      servedFromCache: false,
-      source: afterRefresh.source,
-      standingsCount: afterRefresh.standings.length,
-      fixturesCount: afterRefresh.fixtures?.length ?? 0,
-    });
-    return afterRefresh;
-  }
+  // Page rendering is strictly cache-only. Missing data is refreshed only by
+  // the protected cron route, never as a side effect of a visitor request.
   console.warn("[leagueSnapshot] return empty snapshot", {
     leagueCode: code,
     servedFromCache: false,
@@ -586,14 +656,12 @@ export async function getLeagueSnapshot(code: LeagueId): Promise<LeagueSnapshot>
     standingsCount: 0,
     fixturesCount: 0,
   });
-  return (
-    afterRefresh ?? {
-      standings: [],
-      fixtures: [],
-      news: [],
-      competitionName: leagueName(code),
-      fetchedAt: Date.now(),
-      source: "empty",
-    }
-  );
+  return {
+    standings: [],
+    fixtures: [],
+    news: [],
+    competitionName: leagueName(code),
+    fetchedAt: Date.now(),
+    source: "empty",
+  };
 }
