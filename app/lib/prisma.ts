@@ -6,9 +6,31 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+function getRuntimeDatabaseUrl(): string | undefined {
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) return undefined;
+
+  try {
+    const url = new URL(rawUrl);
+    if (!url.hostname.endsWith(".pooler.supabase.com")) return rawUrl;
+
+    // Vercel では Supavisor Transaction mode を使い、各インスタンスの接続を 1 本に抑える。
+    url.port = "6543";
+    url.searchParams.set("pgbouncer", "true");
+    url.searchParams.set("connection_limit", "1");
+    url.searchParams.set("sslmode", "require");
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+const runtimeDatabaseUrl = getRuntimeDatabaseUrl();
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    ...(runtimeDatabaseUrl ? { datasourceUrl: runtimeDatabaseUrl } : {}),
     log: ["error"],
   });
 

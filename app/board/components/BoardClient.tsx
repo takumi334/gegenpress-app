@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSubmissionFetch } from "@/lib/useSubmissionFetch";
 
 export default function BoardClient({
   teamId,
@@ -12,6 +13,7 @@ export default function BoardClient({
   const [threads, setThreads] = useState<any[]>([]);
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
+  const submitFetch = useSubmissionFetch(JSON.stringify([teamId, name, body]));
 
   // 投稿一覧取得
   const fetchThreads = async () => {
@@ -34,11 +36,12 @@ export default function BoardClient({
   // 投稿ボタン
   const handlePost = async () => {
     if (!body.trim()) return;
-    await fetch(`/api/threads`, {
+    const res = await submitFetch(`/api/threads`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ teamId, name, body }),
     });
+    if (!res.ok) return; // Preserve the draft and retry key after a failed save.
     setBody("");
     // ✅ 再取得して最新順更新
     fetchThreads();

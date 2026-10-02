@@ -1,6 +1,8 @@
 // app/api/threads/route.ts
 import { NextRequest } from "next/server";
-import { listThreads, createThread, createTacticsBoardForThread } from "@/lib/boardApi";
+import { listThreads } from "@/lib/boardApi";
+import prisma from "@/lib/prisma";
+import { saveSubmissionOnce, submissionKey, SubmissionError } from "@/lib/submission";
 import { translateBatch } from "@/lib/translate";
 import { NO_STORE_HEADERS } from "@/lib/noStore";
 import { getTeamIdFromParam } from "@/lib/teams";
@@ -45,6 +47,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const key = submissionKey(req);
     const payload = await req.json() as {
       teamId: number | string;
       boardSlug?: string;
@@ -112,27 +115,38 @@ export async function POST(req: NextRequest) {
 
     const lang = (targetLang ?? DEFAULT_TARGET_LANG).trim() || DEFAULT_TARGET_LANG;
 
-    let translatedBody: string | null = null;
-    if (bodyText) {
-      try {
-        const [tr] = await translateBatch([bodyText], lang);
-        const candidate = (tr ?? "").trim();
-        translatedBody = candidate && candidate !== bodyText ? candidate : null;
-      } catch (translateErr) {
-        console.warn("[POST /api/threads] 翻訳失敗", translateErr);
-      }
-    }
-
     const allowed = ["PRE_MATCH", "LIVE_MATCH", "POST_MATCH", "GENERAL"] as const;
     const type = (allowed.includes(threadType as any) ? threadType : null) ?? "GENERAL";
-    const row = await createThread(t, title.trim(), bodyText, type, undefined, translatedBody);
+    const tactic = tacticPayload && Array.isArray(tacticPayload.frames) && tacticPayload.frames.length > 0
+      ? tacticPayload : null;
+    const select = { id: true, teamId: true, title: true, body: true, translatedBody: true, createdAt: true, threadType: true, submissionHash: true } as const;
+    const row = await saveSubmissionOnce(
+      key,
+      { teamId: t, title: title.trim(), body: bodyText, type, tactic, lang },
+      () => prisma.thread.findUnique({ where: { submissionKey: key }, select }),
+      async (metadata) => {
+        let translatedBody: string | null = null;
+        if (bodyText) {
+          try {
+            const [tr] = await translateBatch([bodyText], lang);
+            const candidate = (tr ?? "").trim();
+            translatedBody = candidate && candidate !== bodyText ? candidate : null;
+          } catch (translateErr) {
+            console.warn("[POST /api/threads] 翻訳失敗", translateErr);
+          }
+        }
 
-    if (tacticPayload && Array.isArray(tacticPayload.frames) && tacticPayload.frames.length > 0) {
-      if (process.env.NODE_ENV !== "production") {
-        console.log("[POST /api/threads] tacticPayload before save", tacticPayload);
+        // Prisma nested writes commit the thread and its board together or neither.
+        return prisma.thread.create({
+          data: {
+            ...metadata, teamId: t, title: title.trim(), body: bodyText,
+            threadType: type, translatedBody,
+            ...(tactic ? { tacticsBoards: { create: { mode: "GENERAL", body: bodyText, data: tactic as object } } } : {}),
+          },
+          select,
+        });
       }
-      await createTacticsBoardForThread(row.id, tacticPayload, { mode: "GENERAL", body: bodyText });
-    }
+    );
 
     return Response.json(row, { status: 201, headers: NO_STORE_HEADERS });
   } catch (e: any) {
@@ -144,7 +158,7 @@ export async function POST(req: NextRequest) {
         code: e?.code,
         message: e?.message,
       },
-      { status: 500, headers: NO_STORE_HEADERS }
+      { status: e instanceof SubmissionError ? e.status : 500, headers: NO_STORE_HEADERS }
     );
   }
 }

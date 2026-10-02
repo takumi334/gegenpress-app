@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSubmissionFetch } from "@/lib/useSubmissionFetch";
 import { useT } from "@/lib/NativeLangProvider";
 
 type Props = {
@@ -19,6 +20,7 @@ export default function ReplyForm({ threadId }: Props) {
   const t = useT();
   const [author, setAuthor] = useState("");
   const [body, setBody] = useState("");
+  const submitFetch = useSubmissionFetch(JSON.stringify([threadId, author, body]));
   const [replies, setReplies] = useState<Reply[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -62,7 +64,7 @@ export default function ReplyForm({ threadId }: Props) {
         return;
       }
 
-      const res = await fetch("/api/posts", {
+      const res = await submitFetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -83,7 +85,7 @@ export default function ReplyForm({ threadId }: Props) {
         return;
       }
 
-      setReplies((prev) => [...prev, data]);
+      setReplies((prev) => prev.some((reply) => reply.id === data.id) ? prev : [...prev, data]);
       setBody("");
     } catch (e) {
       console.error("reply submit error", e);

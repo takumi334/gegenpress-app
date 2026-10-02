@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSubmissionFetch } from "@/lib/useSubmissionFetch";
 import Link from "next/link";
 import ReportButton from "@components/ReportButton";
 import { useT } from "@/lib/NativeLangProvider";
@@ -470,6 +471,7 @@ export function ReplyForm({
   const [name, setName] = useState("");
   const [body, setBody] = useState("");
   const [pendingTactic, setPendingTactic] = useState<LineupTacticPayload | null>(null);
+  const submitFetch = useSubmissionFetch(JSON.stringify([threadId, name, body, pendingTactic, targetLang, sameLanguage]));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -515,7 +517,7 @@ export function ReplyForm({
       if (pendingTactic?.frames?.length) {
         payload.tacticPayload = pendingTactic;
       }
-      const r = await fetch(`/api/threads/${threadId}/posts`, {
+      const r = await submitFetch(`/api/threads/${threadId}/posts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

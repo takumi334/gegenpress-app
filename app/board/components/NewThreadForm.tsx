@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSubmissionFetch } from "@/lib/useSubmissionFetch";
 import { usePathname, useRouter } from "next/navigation";
 import { useT } from "@/lib/NativeLangProvider";
 import type { LineupTacticPayload } from "@/lib/lineupTacticData";
@@ -16,6 +17,7 @@ export default function NewThreadForm({ teamId }: { teamId: string }) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [pendingTacticPayload, setPendingTacticPayload] = useState<LineupTacticPayload | null>(null);
   const [resolvedTeamId, setResolvedTeamId] = useState(teamId);
+  const submitFetch = useSubmissionFetch(JSON.stringify([resolvedTeamId, title, body, authorName, pendingTacticPayload, previewImage]));
 
   useEffect(() => {
     const seg = pathname?.split("/").filter(Boolean) ?? [];
@@ -101,7 +103,7 @@ export default function NewThreadForm({ teamId }: { teamId: string }) {
     }
 
     try {
-      const res = await fetch("/api/threads", {
+      const res = await submitFetch("/api/threads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

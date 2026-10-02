@@ -1,6 +1,7 @@
 // app/api/threads/[threadId]/posts/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma, { withPrismaRetry } from "@/lib/prisma";
+import { saveSubmissionOnce, submissionKey, SubmissionError } from "@/lib/submission";
 import { translateBatch } from "@/lib/translate";
 import { NO_STORE_HEADERS } from "@/lib/noStore";
 import {
@@ -23,6 +24,7 @@ export async function POST(
   context: { params: Promise<{ threadId: string }> }
 ) {
   try {
+    const key = submissionKey(req);
     const { threadId: threadIdParam } = await context.params;
     const threadId = threadIdParam?.trim();
     if (!threadId) {
@@ -61,16 +63,6 @@ export async function POST(
       return NextResponse.json({ error: MODERATION_ERROR_MESSAGE }, { status: 400, headers: NO_STORE_HEADERS });
     }
 
-    let finalTranslatedBody: string | null = null;
-    try {
-      const translationInput = [originalBody];
-      const translated = await translateBatch(translationInput, targetLang);
-      const candidate = (translated[0] ?? "").trim();
-      finalTranslatedBody = candidate && candidate !== originalBody ? candidate : null;
-    } catch (translateErr) {
-      console.warn("[POST posts] 翻訳失敗（translatedBody は null で保存）", translateErr);
-    }
-
     const idNum = Number(threadId);
     if (isNaN(idNum) || idNum <= 0) {
       return NextResponse.json({ error: "invalid threadId" }, { status: 400, headers: NO_STORE_HEADERS });
@@ -96,19 +88,32 @@ export async function POST(
       );
     }
 
-    const dataBeforeInsert = {
-      threadId: idNum,
-      author: authorName,
-      body: originalBody,
-      translatedBody: finalTranslatedBody,
-      ...(tactic !== undefined && { tactic }),
-    };
+    const select = { id: true, author: true, body: true, translatedBody: true, createdAt: true, submissionHash: true } as const;
+    const post = await saveSubmissionOnce(
+      key,
+      { threadId: idNum, author: authorName, body: originalBody, tactic: tactic ?? null, targetLang },
+      () => prisma.post.findUnique({ where: { submissionKey: key }, select }),
+      async (metadata) => {
+        let finalTranslatedBody: string | null = null;
+        try {
+          const translationInput = [originalBody];
+          const translated = await translateBatch(translationInput, targetLang);
+          const candidate = (translated[0] ?? "").trim();
+          finalTranslatedBody = candidate && candidate !== originalBody ? candidate : null;
+        } catch (translateErr) {
+          console.warn("[POST posts] 翻訳失敗（translatedBody は null で保存）", translateErr);
+        }
 
-    const post = await withPrismaRetry("POST /api/threads/[threadId]/posts post.create", () =>
-      prisma.post.create({
-        data: dataBeforeInsert,
-        select: { id: true, body: true, translatedBody: true, createdAt: true },
-      })
+        const dataBeforeInsert = {
+          threadId: idNum,
+          author: authorName,
+          body: originalBody,
+          translatedBody: finalTranslatedBody,
+          ...(tactic !== undefined && { tactic }),
+        };
+
+        return prisma.post.create({ data: { ...dataBeforeInsert, ...metadata }, select });
+      }
     );
 
     return NextResponse.json({ id: post.id }, { status: 201, headers: NO_STORE_HEADERS });
@@ -117,7 +122,7 @@ export async function POST(
     console.error("❌ 投稿保存エラー:", e);
     return NextResponse.json(
       { error: String(message) },
-      { status: 500, headers: NO_STORE_HEADERS }
+      { status: e instanceof SubmissionError ? e.status : 500, headers: NO_STORE_HEADERS }
     );
   }
 }

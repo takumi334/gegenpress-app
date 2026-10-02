@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSubmissionFetch } from '@/lib/useSubmissionFetch';
 
 type Thread = {
   id: string;
@@ -14,6 +15,7 @@ type Thread = {
 export default function ThreadsPanel({ teamId }: { teamId: number }) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [title, setTitle] = useState('');
+  const submitFetch = useSubmissionFetch(JSON.stringify([teamId, title]));
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export default function ThreadsPanel({ teamId }: { teamId: number }) {
   async function createThread(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
-    const r = await fetch('/api/threads', {
+    const r = await submitFetch('/api/threads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ teamId, title }),

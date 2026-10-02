@@ -1,21 +1,24 @@
 "use client";
 import { useState } from "react";
+import { useSubmissionFetch } from "@/lib/useSubmissionFetch";
 import { useRouter } from "next/navigation";
 
 export default function PostComposer({ threadId }: { threadId: string }) {
   const router = useRouter();
   const [authorName, setAuthorName] = useState("");
   const [body, setBody] = useState("");
+  const submitFetch = useSubmissionFetch(JSON.stringify([threadId, authorName, body]));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
 
-    await fetch(`/api/threads/${threadId}/posts`, {
+    const res = await submitFetch(`/api/threads/${threadId}/posts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ authorName, body }),
     });
+    if (!res.ok) return; // Preserve the draft and retry key after a failed save.
 
     setBody("");
     router.refresh(); // ← これが一覧再取得のトリガー！

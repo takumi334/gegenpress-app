@@ -10,6 +10,8 @@ datasource db {
 
 model Thread {
   id                Int                @id @default(autoincrement())
+  submissionKey     String?            @unique
+  submissionHash    String?
   teamId            Int
   matchId           Int?               // football-data.org 試合 ID（自動作成スレ用）
   title             String
@@ -26,6 +28,7 @@ model Thread {
   tacticsBoards     TacticsBoard[]
 
   @@index([matchId, threadType])
+  @@index([teamId, deletedAt, createdAt])
   @@map("スレッド")
 }
 
@@ -64,6 +67,8 @@ model AutoThreadJob {
 
 model Post {
   id              Int       @id @default(autoincrement())
+  submissionKey   String?   @unique
+  submissionHash  String?
   threadId        Int
   author          String?
   body            String    @default("")
@@ -111,6 +116,9 @@ model Report {
   ua        String?
   ip        String?
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([kind, targetId])
 }
 
 model ScheduledPost {
